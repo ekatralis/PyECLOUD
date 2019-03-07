@@ -3,9 +3,9 @@ import types
 import numpy as np
 from scipy.constants import c
 
-import communication_helpers as ch
-import share_segments as shs
-import slicing_tool as sl
+import PyPARIS.communication_helpers as ch
+import PyPARIS.share_segments as shs
+import PyPARIS.slicing_tool as sl
 
 verbose = False
 
