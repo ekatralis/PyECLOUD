@@ -4,5 +4,9 @@
 #SBATCH -t 2-00:00:00
 # --hint=nomultithread
 
+module load mpi/mvapich2/2.2
+
+export PYTHONPATH=$PYTHONPATH:/hpcscratch/user/lmether/sim_workspace/
+
 source /hpcscratch/user/lmether/sim_workspace/virtualenvs/py2.7/bin/activate
 srun python for000_run_sim.py
