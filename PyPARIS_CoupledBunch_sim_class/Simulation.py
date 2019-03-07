@@ -166,7 +166,7 @@ class Simulation(object):
         from scipy.constants import c as clight, e as qe
         from PyHEADTAIL.particles.slicing import UniformBinSlicer
         
-        import gen_multibunch_beam as gmb
+        import PyPARIS.gen_multibunch_beam as gmb
         list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
                 bunch_intensity, epsn_x, epsn_y, sigma_z, non_linear_long_matching, min_inten_slice4EC)
                 
