@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 #SBATCH -p be-long
-#SBATCH -n 360
+#SBATCH -n 40
 #SBATCH -t 2-00:00:00
 # --hint=nomultithread
 
