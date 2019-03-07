@@ -1,9 +1,3 @@
-import sys, os
-BIN = os.path.expanduser("../")
-sys.path.append(BIN)
-BIN = os.path.expanduser("../PyPARIS")
-sys.path.append(BIN)
-
 import types
 
 import numpy as np
