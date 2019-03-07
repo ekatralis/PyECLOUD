@@ -6,7 +6,10 @@
 
 module load mpi/mvapich2/2.2
 
-export PYTHONPATH=$PYTHONPATH:/hpcscratch/user/lmether/sim_workspace/
+SIM_WORKSPACE=/hpcscratch/user/lmether/sim_workspace/
+ 
+export PYTHONPATH=$PYTHONPATH:$SIM_WORKSPACE
 
-source /hpcscratch/user/lmether/sim_workspace/virtualenvs/py2.7/bin/activate
+source $SIM_WORKSPACE/virtualenvs/py2.7/bin/activate
+
 srun python for000_run_sim.py
