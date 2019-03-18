@@ -34,7 +34,7 @@ sigma_z = sigma_z_bunch
 
 #Filling pattern: here head is left and tail is right
 b_spac_s = 25e-9/5
-filling_pattern = (0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))[:160]
+filling_pattern = (0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
 
 macroparticlenumber = 1000000
 min_inten_slice4EC = 1e7
@@ -59,7 +59,7 @@ class Simulation(object):
         self.N_turns = 100
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
-        self.N_parellel_rings = 20 #40
+        self.N_parellel_rings = 45
         
         self.n_slices_per_bunch = 200
         self.z_cut_slicing = 3*sigma_z_bunch
