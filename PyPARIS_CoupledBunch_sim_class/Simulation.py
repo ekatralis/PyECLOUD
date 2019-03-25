@@ -7,7 +7,6 @@ import PyPARIS.communication_helpers as ch
 import PyPARIS.share_segments as shs
 import PyPARIS.slicing_tool as sl
 
-verbose = False
 
 sigma_z_bunch = 10e-2
 
@@ -64,14 +63,15 @@ class Simulation(object):
         self.n_slices_per_bunch = 200
         self.z_cut_slicing = 3*sigma_z_bunch
         self.N_pieces_per_transfer = 300
+        self.verbose = True
+        self.mpi_verbose = True
+
         
 
     def init_all(self):
         
         print('Exec init...')
         
-        self.ring_of_CPUs.verbose = verbose
-
         from LHC_custom import LHC
         self.machine = LHC(n_segments = n_segments, machine_configuration = machine_configuration,
                         Qp_x=Qp_x, Qp_y=Qp_y,
