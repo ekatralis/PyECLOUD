@@ -55,7 +55,7 @@ pickle_beam = False
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 100
+        self.N_turns = 45
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
         self.N_parellel_rings = 45
@@ -63,8 +63,9 @@ class Simulation(object):
         self.n_slices_per_bunch = 200
         self.z_cut_slicing = 3*sigma_z_bunch
         self.N_pieces_per_transfer = 300
-        self.verbose = True
+        self.verbose = False
         self.mpi_verbose = True
+        self.enable_barriers = True
 
         
 

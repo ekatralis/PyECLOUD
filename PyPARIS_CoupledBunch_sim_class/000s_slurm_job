@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH -p be-short
+#SBATCH -p be-long
 #SBATCH -n 360
 #SBATCH -t 2-00:00:00
 # --hint=nomultithread
