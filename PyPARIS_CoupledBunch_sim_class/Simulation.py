@@ -1,4 +1,5 @@
 import types
+import os
 
 import numpy as np
 from scipy.constants import c
@@ -6,12 +7,13 @@ from scipy.constants import c
 import PyPARIS.communication_helpers as ch
 import PyPARIS.share_segments as shs
 import PyPARIS.slicing_tool as sl
+import PyECLOUD.myfilemanager as mfm
 
 
 sigma_z_bunch = 10e-2
 
 machine_configuration = 'HLLHC-injection'
-n_segments = 8
+n_segments = 2 #8
 
 octupole_knob = 0.0
 Qp_x = 0.
@@ -33,9 +35,12 @@ sigma_z = sigma_z_bunch
 
 #Filling pattern: here head is left and tail is right
 b_spac_s = 25e-9/5
-filling_pattern = (0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
+filling_pattern = 2*([1.]+4*[0.])#(0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
 
-macroparticlenumber = 1000000
+load_beam_from_folder = 'bunch_states_turn0'
+N_bunches_to_be_loaded = len(filling_pattern)
+
+macroparticlenumber = 100 #1000000
 min_inten_slice4EC = 1e7
 
 x_kick_in_sigmas = 0.25
@@ -43,7 +48,7 @@ y_kick_in_sigmas = 0.25
 
 target_size_internal_grid_sigma = 10.
 
-enable_ecloud = True
+enable_ecloud = False#True
 
 enable_kick_x = True
 enable_kick_y = False
@@ -55,10 +60,10 @@ pickle_beam = False
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 45
+        self.N_turns = 6
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
-        self.N_parellel_rings = 45
+        self.N_parellel_rings = 3
         
         self.n_slices_per_bunch = 200
         self.z_cut_slicing = 3*sigma_z_bunch
@@ -66,6 +71,7 @@ class Simulation(object):
         self.verbose = False
         self.mpi_verbose = True
         self.enable_barriers = True
+        self.turns_save_bunch_list = [0, 5, 6]
 
         
 
@@ -158,8 +164,7 @@ class Simulation(object):
             print('Hello, I am %d.%d, my part looks like: %s. Saver status: %s'%(self.ring_of_CPUs.myring, self.ring_of_CPUs.myid_in_ring, self.mypart, [(ec.cloudsim.cloud_list[0].pyeclsaver is not None) for ec in self.my_list_eclouds]))
             
 
-
-        
+       
     def init_master(self):
         
         print('Building the beam!')
@@ -196,21 +201,36 @@ class Simulation(object):
          'epsn_z', 'macroparticlenumber',
          'i_bunch', 'i_turn']
 
-        n_stored_turns = len(filling_pattern)*(self.ring_of_CPUs.N_turns/self.ring_of_CPUs.N_parellel_rings + self.ring_of_CPUs.N_parellel_rings)
+        n_stored_turns = len(filling_pattern)*(\
+            self.ring_of_CPUs.N_turns/self.ring_of_CPUs.N_parellel_rings\
+            + self.ring_of_CPUs.N_parellel_rings)
 
         from PyHEADTAIL.monitors.monitors import BunchMonitor
-        self.bunch_monitor = BunchMonitor('bunch_monitor_ring%03d'%self.ring_of_CPUs.myring,
+        self.bunch_monitor = BunchMonitor(
+                            'bunch_monitor_ring%03d'%self.ring_of_CPUs.myring,
                             n_stored_turns, 
                             {'Comment':'PyHDTL simulation'}, 
                             write_buffer_every = 1,
                             stats_to_store = stats_to_store)
 
     def perform_bunch_operations_at_start_ring(self, bunch):
+        
+        if bunch.slice_info['i_turn'] in self.turns_save_bunch_list:
+            dirname = 'bunch_states_turn%d'%bunch.slice_info['i_turn']
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            buf = ch.beam_2_buffer(bunch)
+            bpath = dirname+'/bunch%d.h5'%bunch.slice_info['i_bunch']
+            print('Saving: ' + bpath)
+            mfm.dict_to_h5(dict_save={'bunchbuffer':buf}, 
+                           filename=bpath)
+
         # Attach bound methods to monitor i_bunch and i_turns 
         # (In the future we might upgrade PyHEADTAIL to pass the lambda to the monitor)
-        if bunch.macroparticlenumber>0:
-            bunch.i_bunch = types.MethodType(lambda self: self.slice_info['i_bunch'], bunch)
-            bunch.i_turn = types.MethodType(lambda self: self.slice_info['i_turn'], bunch)
+        if bunch.macroparticlenumber > 0 and bunch.slice_info['i_turn'] < self.N_turns:
+            bunch.i_bunch = types.MethodType(lambda ss: ss.slice_info['i_bunch'], bunch)
+            bunch.i_turn = types.MethodType(lambda ss: ss.slice_info['i_turn'], bunch)
+            
             self.bunch_monitor.dump(bunch)        
 
     def slice_bunch_at_start_ring(self, bunch):
