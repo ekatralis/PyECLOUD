@@ -37,8 +37,7 @@ sigma_z = sigma_z_bunch
 b_spac_s = 25e-9/5
 filling_pattern = 2*([1.]+4*[0.])#(0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
 
-load_beam_from_folder = 'bunch_states_turn0'
-N_bunches_to_be_loaded = len(filling_pattern)
+load_beam_from_folder = None#'bunch_states_turn0'
 
 macroparticlenumber = 100 #1000000
 min_inten_slice4EC = 1e7
@@ -167,30 +166,42 @@ class Simulation(object):
        
     def init_master(self):
         
-        print('Building the beam!')
+
         
         from scipy.constants import c as clight, e as qe
         from PyHEADTAIL.particles.slicing import UniformBinSlicer
         
-        import PyPARIS.gen_multibunch_beam as gmb
-        list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
+        if load_beam_from_folder is None:
+            print('Building the beam!')
+            import PyPARIS.gen_multibunch_beam as gmb
+            list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
                 bunch_intensity, epsn_x, epsn_y, sigma_z, non_linear_long_matching, min_inten_slice4EC)
-                
+            # compute and apply initial displacements
+            inj_opt = self.machine.transverse_map.get_injection_optics()
+            sigma_x = np.sqrt(inj_opt['beta_x']*epsn_x/self.machine.betagamma)
+            sigma_y = np.sqrt(inj_opt['beta_y']*epsn_y/self.machine.betagamma)
+            x_kick = x_kick_in_sigmas*sigma_x
+            y_kick = y_kick_in_sigmas*sigma_y
+            for bunch in list_bunches:
+                bunch.x += x_kick
+                bunch.y += y_kick
+        else:
+            dirname = load_beam_from_folder
+            print('Loading the beam from %s'%dirname)
+            bzero = ch.buffer_2_beam(mfm.dict_of_arrays_and_scalar_from_h5(
+                    dirname+'/bunch0.h5')['bunchbuffer'])
+            N_bunches_tot_beam = bzero.slice_info['N_bunches_tot_beam']
+            list_bunches = [bzero]
+            for ibun in xrange(1, N_bunches_tot_beam):
+                list_bunches.append(ch.buffer_2_beam(
+                    mfm.dict_of_arrays_and_scalar_from_h5(
+                    dirname+'/bunch%d.h5'%ibun)['bunchbuffer']))
+            list_bunches = list_bunches[::-1] # We want the last bunch to be in pos 0
+
         if pickle_beam:
             import pickle
             with open('init_beam.pkl', 'w') as fid:
                 pickle.dump({'list_bunches': list_bunches}, fid)
-
-        # compute and apply initial displacements
-        inj_opt = self.machine.transverse_map.get_injection_optics()
-        sigma_x = np.sqrt(inj_opt['beta_x']*epsn_x/self.machine.betagamma)
-        sigma_y = np.sqrt(inj_opt['beta_y']*epsn_y/self.machine.betagamma)
-        x_kick = x_kick_in_sigmas*sigma_x
-        y_kick = y_kick_in_sigmas*sigma_y
-        for bunch in list_bunches:
-            bunch.x += x_kick
-            bunch.y += y_kick
-
 
         return list_bunches
 
