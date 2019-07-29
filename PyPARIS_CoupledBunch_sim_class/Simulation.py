@@ -21,9 +21,9 @@ Qp_y = 0.
 
 flag_aperture = True
 
-enable_transverse_damper = False
+enable_transverse_damper = True
 dampingrate_x = 10000.
-dampingrate_y = 50.
+dampingrate_y = 20.
 
 # Beam properties
 non_linear_long_matching = False
@@ -35,9 +35,9 @@ sigma_z = sigma_z_bunch
 
 #Filling pattern: here head is left and tail is right
 b_spac_s = 25e-9/5
-filling_pattern = 2*([1.]+4*[0.])#(0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
+filling_pattern = 5*([1.]+4*[0.])#(0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
 
-load_beam_from_folder = None#'bunch_states_turn0'
+load_beam_from_folder = None #'bunch_states_turn0'
 
 macroparticlenumber = 100 #1000000
 min_inten_slice4EC = 1e7
@@ -47,19 +47,17 @@ y_kick_in_sigmas = 0.25
 
 target_size_internal_grid_sigma = 10.
 
-enable_ecloud = False#True
+enable_ecloud = False #True
 
 enable_kick_x = True
 enable_kick_y = False
 
 L_ecloud_tot = 20e3
 
-pickle_beam = False
-
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 6
+        self.N_turns = 99
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
         self.N_parellel_rings = 3
@@ -70,9 +68,7 @@ class Simulation(object):
         self.verbose = False
         self.mpi_verbose = True
         self.enable_barriers = True
-        self.turns_save_bunch_list = [0, 5, 6]
-
-        
+        self.save_beam_at_turns = [0, 5, 6]
 
     def init_all(self):
         
@@ -160,50 +156,50 @@ class Simulation(object):
 
             self.mypart = my_new_part
             
-            print('Hello, I am %d.%d, my part looks like: %s. Saver status: %s'%(self.ring_of_CPUs.myring, self.ring_of_CPUs.myid_in_ring, self.mypart, [(ec.cloudsim.cloud_list[0].pyeclsaver is not None) for ec in self.my_list_eclouds]))
+            print('Hello, I am %d.%d, my part looks like: %s. Saver status: %s'%(
+                self.ring_of_CPUs.myring, self.ring_of_CPUs.myid_in_ring, self.mypart, 
+                [(ec.cloudsim.cloud_list[0].pyeclsaver is not None) for ec in self.my_list_eclouds]))
             
-
        
     def init_master(self):
         
-
-        
+        import PyPARIS.gen_multibunch_beam as gmb
         from scipy.constants import c as clight, e as qe
         from PyHEADTAIL.particles.slicing import UniformBinSlicer
         
-        if load_beam_from_folder is None:
-            print('Building the beam!')
-            import PyPARIS.gen_multibunch_beam as gmb
-            list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
-                bunch_intensity, epsn_x, epsn_y, sigma_z, non_linear_long_matching, min_inten_slice4EC)
-            # compute and apply initial displacements
-            inj_opt = self.machine.transverse_map.get_injection_optics()
-            sigma_x = np.sqrt(inj_opt['beta_x']*epsn_x/self.machine.betagamma)
-            sigma_y = np.sqrt(inj_opt['beta_y']*epsn_y/self.machine.betagamma)
-            x_kick = x_kick_in_sigmas*sigma_x
-            y_kick = y_kick_in_sigmas*sigma_y
-            for bunch in list_bunches:
-                bunch.x += x_kick
-                bunch.y += y_kick
+        # Manage multi-run operation
+        import PyPARIS_sim_class.Save_Load_Status as SLS
+        SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
+                check_for_resubmit = False, N_turns_target=N_turns_target)
+        SimSt.before_simulation()
+        self.SimSt = SimSt
+
+        if SimSt.first_run:
+            if load_beam_from_folder is None:
+                print('Building the beam!')
+                list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
+                    bunch_intensity, epsn_x, epsn_y, sigma_z, non_linear_long_matching, min_inten_slice4EC)
+                # compute and apply initial displacements
+                inj_opt = self.machine.transverse_map.get_injection_optics()
+                sigma_x = np.sqrt(inj_opt['beta_x']*epsn_x/self.machine.betagamma)
+                sigma_y = np.sqrt(inj_opt['beta_y']*epsn_y/self.machine.betagamma)
+                x_kick = x_kick_in_sigmas*sigma_x
+                y_kick = y_kick_in_sigmas*sigma_y
+                for bunch in list_bunches:
+                    bunch.x += x_kick
+                    bunch.y += y_kick
+            else:
+                # Load based on input
+                list_bunches = gmb.load_multibunch_beam(load_beam_from_folder)
         else:
-            dirname = load_beam_from_folder
-            print('Loading the beam from %s'%dirname)
-            bzero = ch.buffer_2_beam(mfm.dict_of_arrays_and_scalar_from_h5(
-                    dirname+'/bunch0.h5')['bunchbuffer'])
-            N_bunches_tot_beam = bzero.slice_info['N_bunches_tot_beam']
-            list_bunches = [bzero]
-            for ibun in xrange(1, N_bunches_tot_beam):
-                list_bunches.append(ch.buffer_2_beam(
-                    mfm.dict_of_arrays_and_scalar_from_h5(
-                    dirname+'/bunch%d.h5'%ibun)['bunchbuffer']))
-            list_bunches = list_bunches[::-1] # We want the last bunch to be in pos 0
-
-        if pickle_beam:
-            import pickle
-            with open('init_beam.pkl', 'w') as fid:
-                pickle.dump({'list_bunches': list_bunches}, fid)
-
+            # Load from previous run
+            print 'Loading beam from file...'
+            dirname = 'beam_status_part%02d'%(SimSt.present_simulation_part-1)
+            list_bunches = gmb.load_multibunch_beam(dirname) 
+            print 'Loaded beam from file.'
+                
         return list_bunches
+
 
     def init_start_ring(self):
         stats_to_store = [
@@ -226,23 +222,30 @@ class Simulation(object):
 
     def perform_bunch_operations_at_start_ring(self, bunch):
         
-        if bunch.slice_info['i_turn'] in self.turns_save_bunch_list:
-            dirname = 'bunch_states_turn%d'%bunch.slice_info['i_turn']
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            buf = ch.beam_2_buffer(bunch)
-            bpath = dirname+'/bunch%d.h5'%bunch.slice_info['i_bunch']
-            print('Saving: ' + bpath)
-            mfm.dict_to_h5(dict_save={'bunchbuffer':buf}, 
-                           filename=bpath)
-
-        # Attach bound methods to monitor i_bunch and i_turns 
-        # (In the future we might upgrade PyHEADTAIL to pass the lambda to the monitor)
+        # Save bunch properties
         if bunch.macroparticlenumber > 0 and bunch.slice_info['i_turn'] < self.N_turns:
+            # Attach bound methods to monitor i_bunch and i_turns 
             bunch.i_bunch = types.MethodType(lambda ss: ss.slice_info['i_bunch'], bunch)
             bunch.i_turn = types.MethodType(lambda ss: ss.slice_info['i_turn'], bunch)
-            
-            self.bunch_monitor.dump(bunch)        
+            self.bunch_monitor.dump(bunch)
+        
+        # Save full beam at user-defined positions
+        if bunch.slice_info['i_turn'] in self.save_beam_at_turns:
+            dirname = 'bunch_states_turn%d'%bunch.slice_info['i_turn']
+            import PyPARIS.gen_multibunch_beam as gmb
+            gmb.save_bunch_to_folder(bunch, dirname)
+
+        # Save full beam at end simulation 
+        if bunch.slice_info['i_turn'] == self.N_turns:
+            # PyPARIS wants N_turns to be a multiple of N_parellel_rings
+            assert(self.ring_of_CPUs.I_am_the_master) 
+            dirname = 'beam_status_part%02d'%(self.SimSt.present_simulation_part)
+            import PyPARIS.gen_multibunch_beam as gmb
+            gmb.save_bunch_to_folder(bunch, dirname)
+            if not self.SimSt.first_run:
+                if bunch.slice_info['i_bunch'] == bunch.slice_info['N_bunches_tot_beam'] - 1:
+                os.system('rm -r beam_status_part%02d' % (self.SimSt.present_simulation_part - 1))
+                self.SimSt.after_simulation()
 
     def slice_bunch_at_start_ring(self, bunch):
         list_slices = sl.slice_a_bunch(bunch, self.z_cut_slicing, self.n_slices_per_bunch)
@@ -262,7 +265,6 @@ class Simulation(object):
             for ele in self.non_parallel_part:
                 ele.track(bunch)
 
-
     def piece_to_buffer(self, piece):
         buf = ch.beam_2_buffer(piece)
         return buf
@@ -270,7 +272,5 @@ class Simulation(object):
     def buffer_to_piece(self, buf):
         piece = ch.buffer_2_beam(buf)
         return piece
-
-
 
 
