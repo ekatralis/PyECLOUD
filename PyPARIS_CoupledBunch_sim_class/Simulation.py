@@ -9,6 +9,7 @@ import PyPARIS.share_segments as shs
 import PyPARIS.slicing_tool as sl
 import PyECLOUD.myfilemanager as mfm
 
+N_turns_target = 66
 
 sigma_z_bunch = 10e-2
 
@@ -57,7 +58,7 @@ L_ecloud_tot = 20e3
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 99
+        self.N_turns = 33
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
         self.N_parellel_rings = 3
@@ -68,7 +69,7 @@ class Simulation(object):
         self.verbose = False
         self.mpi_verbose = True
         self.enable_barriers = True
-        self.save_beam_at_turns = [0, 5, 6]
+        self.save_beam_at_turns = [5]
 
     def init_all(self):
         
