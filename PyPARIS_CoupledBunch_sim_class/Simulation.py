@@ -124,6 +124,7 @@ class Simulation(object):
                     #y_beam_offset = y_beam_offset,
                     #probes_position = probes_position,
                     save_pyecl_outp_as = 'cloud_evol_ring%d'%self.ring_of_CPUs.myring,
+                    save_only = None,
                     sparse_solver = 'PyKLU', enable_kick_x=enable_kick_x, enable_kick_y=enable_kick_y)
             print('Done.')
 
