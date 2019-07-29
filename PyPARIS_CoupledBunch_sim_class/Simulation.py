@@ -9,7 +9,7 @@ import PyPARIS.share_segments as shs
 import PyPARIS.slicing_tool as sl
 import PyECLOUD.myfilemanager as mfm
 
-N_turns_target = 66
+N_turns_target = 18
 
 sigma_z_bunch = 10e-2
 
@@ -58,7 +58,7 @@ L_ecloud_tot = 20e3
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 33
+        self.N_turns = 9
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
         self.N_parellel_rings = 3
@@ -198,31 +198,41 @@ class Simulation(object):
             dirname = 'beam_status_part%02d'%(SimSt.present_simulation_part-1)
             list_bunches = gmb.load_multibunch_beam(dirname) 
             print 'Loaded beam from file.'
-                
+        
+        for bb in list_bunches:
+            bb.slice_info['simstate_part'] = self.SimSt.present_simulation_part
+
         return list_bunches
 
 
     def init_start_ring(self):
-        stats_to_store = [
-         'mean_x', 'mean_xp', 'mean_y', 'mean_yp', 'mean_z', 'mean_dp',
-         'sigma_x', 'sigma_y', 'sigma_z','sigma_dp', 'epsn_x', 'epsn_y',
-         'epsn_z', 'macroparticlenumber',
-         'i_bunch', 'i_turn']
-
-        n_stored_turns = len(filling_pattern)*(\
-            self.ring_of_CPUs.N_turns/self.ring_of_CPUs.N_parellel_rings\
-            + self.ring_of_CPUs.N_parellel_rings)
-
-        from PyHEADTAIL.monitors.monitors import BunchMonitor
-        self.bunch_monitor = BunchMonitor(
-                            'bunch_monitor_ring%03d'%self.ring_of_CPUs.myring,
-                            n_stored_turns, 
-                            {'Comment':'PyHDTL simulation'}, 
-                            write_buffer_every = 1,
-                            stats_to_store = stats_to_store)
-
+        self.bunch_monitor = None
+    
     def perform_bunch_operations_at_start_ring(self, bunch):
         
+        if self.bunch_monitor is None:
+            
+            simstate_part = bunch.slice_info['simstate_part']
+            stats_to_store = [
+             'mean_x', 'mean_xp', 'mean_y', 'mean_yp', 'mean_z', 'mean_dp',
+             'sigma_x', 'sigma_y', 'sigma_z','sigma_dp', 'epsn_x', 'epsn_y',
+             'epsn_z', 'macroparticlenumber',
+             'i_bunch', 'i_turn']
+
+            n_stored_turns = len(filling_pattern)*(\
+                self.ring_of_CPUs.N_turns/self.ring_of_CPUs.N_parellel_rings\
+                + self.ring_of_CPUs.N_parellel_rings)
+
+            from PyHEADTAIL.monitors.monitors import BunchMonitor
+            self.bunch_monitor = BunchMonitor(
+                                'bunch_monitor_part%03d_ring%03d'%(
+                                    simstate_part, self.ring_of_CPUs.myring),
+                                n_stored_turns, 
+                                {'Comment':'PyHDTL simulation'}, 
+                                write_buffer_every = 1,
+                                stats_to_store = stats_to_store)
+
+    
         # Save bunch properties
         if bunch.macroparticlenumber > 0 and bunch.slice_info['i_turn'] < self.N_turns:
             # Attach bound methods to monitor i_bunch and i_turns 
@@ -243,9 +253,9 @@ class Simulation(object):
             dirname = 'beam_status_part%02d'%(self.SimSt.present_simulation_part)
             import PyPARIS.gen_multibunch_beam as gmb
             gmb.save_bunch_to_folder(bunch, dirname)
-            if not self.SimSt.first_run:
-                if bunch.slice_info['i_bunch'] == bunch.slice_info['N_bunches_tot_beam'] - 1:
-                os.system('rm -r beam_status_part%02d' % (self.SimSt.present_simulation_part - 1))
+            if bunch.slice_info['i_bunch'] == bunch.slice_info['N_bunches_tot_beam'] - 1:
+                if not self.SimSt.first_run:
+                    os.system('rm -r beam_status_part%02d' % (self.SimSt.present_simulation_part - 1))
                 self.SimSt.after_simulation()
 
     def slice_bunch_at_start_ring(self, bunch):
@@ -254,7 +264,7 @@ class Simulation(object):
 
     def treat_piece(self, piece):
         for ele in self.mypart: 
-                ele.track(piece)
+            ele.track(piece)
         
     def merge_slices_at_end_ring(self, list_slices):
         bunch = sl.merge_slices_into_bunch(list_slices)
