@@ -26,7 +26,7 @@ to_be_saved = [
 
 
 
-list_files = [sim_folder+'/bunch_monitor_ring%03d.h5'%ii for ii in range(n_rings)]
+list_files = [sim_folder+'/bunch_monitor_part000_ring%03d.h5'%ii for ii in range(n_rings)]
 
 import PyPARIS.myfilemanager as mfm
 dict_data = mfm.monitorh5list_to_dict(list_files, permissive=True)
