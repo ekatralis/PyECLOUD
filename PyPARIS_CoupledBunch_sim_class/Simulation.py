@@ -222,7 +222,7 @@ class Simulation(object):
              'epsn_z', 'macroparticlenumber',
              'i_bunch', 'i_turn']
 
-            n_stored_turns = len(filling_pattern)*(\
+            n_stored_turns = np.sum(np.array(filling_pattern)>0)*(\
                 self.ring_of_CPUs.N_turns/self.ring_of_CPUs.N_parellel_rings\
                 + self.ring_of_CPUs.N_parellel_rings)
 
@@ -243,7 +243,8 @@ class Simulation(object):
             self.slice_monitor = SliceMonitor('slice_monitor_part%03d_ring%03d'%(
                 simstate_part, self.ring_of_CPUs.myring),
                 n_stored_turns, slicer,  {'Comment':'PyHDTL simulation'}, 
-                write_buffer_every = 1, bunch_stats_to_store=stats_to_store)
+                write_buffer_every = 1, bunch_stats_to_store=stats_to_store,
+                slice_stats_to_store='mean_x mean_y mean_z n_macroparticles_per_slice'.split())
         
     
 
