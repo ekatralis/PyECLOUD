@@ -1,1 +1,1 @@
-mpiexec --oversubscribe -n 6 python for000_run_sim.py
+mpiexec -n 6 python for000_run_sim.py

@@ -9,6 +9,8 @@ import PyPARIS.share_segments as shs
 import PyPARIS.slicing_tool as sl
 import PyECLOUD.myfilemanager as mfm
 
+from PyHEADTAIL.particles.slicing import UniformBinSlicer
+
 N_turns_target = 18
 
 sigma_z_bunch = 10e-2
@@ -233,14 +235,30 @@ class Simulation(object):
                                 write_buffer_every = 1,
                                 stats_to_store = stats_to_store)
 
+            # define a slice monitor 
+            z_left = bunch.slice_info['z_bin_left'] - bunch.slice_info['z_bin_center']
+            z_right = bunch.slice_info['z_bin_right'] - bunch.slice_info['z_bin_center']
+            slicer = UniformBinSlicer(n_slices = self.n_slices_per_bunch, z_cuts=(z_left, z_right))
+            from PyHEADTAIL.monitors.monitors import SliceMonitor
+            self.slice_monitor = SliceMonitor('slice_monitor_part%03d_ring%03d'%(
+                simstate_part, self.ring_of_CPUs.myring),
+                n_stored_turns, slicer,  {'Comment':'PyHDTL simulation'}, 
+                write_buffer_every = 1, bunch_stats_to_store=stats_to_store)
+        
     
+
         # Save bunch properties
         if bunch.macroparticlenumber > 0 and bunch.slice_info['i_turn'] < self.N_turns:
             # Attach bound methods to monitor i_bunch and i_turns 
             bunch.i_bunch = types.MethodType(lambda ss: ss.slice_info['i_bunch'], bunch)
             bunch.i_turn = types.MethodType(lambda ss: ss.slice_info['i_turn'], bunch)
             self.bunch_monitor.dump(bunch)
-        
+
+            # Monitor slice wrt bunch center
+            bunch.z -= bunch.slice_info['z_bin_center']
+            self.slice_monitor.dump(bunch)
+            bunch.z += bunch.slice_info['z_bin_center']
+
         # Save full beam at user-defined positions
         if bunch.slice_info['i_turn'] in self.save_beam_at_turns:
             dirname = 'bunch_states_turn%d'%bunch.slice_info['i_turn']
@@ -284,5 +302,30 @@ class Simulation(object):
     def buffer_to_piece(self, buf):
         piece = ch.buffer_2_beam(buf)
         return piece
+
+
+class DummyComm(object):
+
+    def __init__(self, N_cores_pretend, pretend_proc_id):
+        self.N_cores_pretend = N_cores_pretend
+        self.pretend_proc_id = pretend_proc_id
+
+    def Get_size(self):
+        return self.N_cores_pretend
+
+    def Get_rank(self):
+        return self.pretend_proc_id
+
+    def Barrier(self):
+        pass
+
+
+def get_sim_instance(N_cores_pretend, id_pretend, 
+                     init_sim_objects_auto=True):
+
+    from PyPARIS.ring_of_CPUs_multiturn import RingOfCPUs_multiturn
+    myCPUring = RingOfCPUs_multiturn(Simulation(),
+            comm=DummyComm(N_cores_pretend, id_pretend))
+    return myCPUring.sim_content
 
 
