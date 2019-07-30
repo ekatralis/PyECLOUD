@@ -11,12 +11,12 @@ import PyECLOUD.myfilemanager as mfm
 
 from PyHEADTAIL.particles.slicing import UniformBinSlicer
 
-N_turns_target = 18
+N_turns_target = 20000
 
 sigma_z_bunch = 10e-2
 
 machine_configuration = 'HLLHC-injection'
-n_segments = 2 #8
+n_segments = 8
 
 octupole_knob = 0.0
 Qp_x = 0.
@@ -24,9 +24,9 @@ Qp_y = 0.
 
 flag_aperture = True
 
-enable_transverse_damper = True
-dampingrate_x = 10000.
-dampingrate_y = 20.
+enable_transverse_damper = False
+dampingrate_x = 0.
+dampingrate_y = 0.
 
 # Beam properties
 non_linear_long_matching = False
@@ -38,7 +38,7 @@ sigma_z = sigma_z_bunch
 
 #Filling pattern: here head is left and tail is right
 b_spac_s = 25e-9/5
-filling_pattern = 5*([1.]+4*[0.])#(0*(72*([1.]+4*[0.]) + 7*5*[0.]) + 72*([1.]+4*[0.]))
+filling_pattern = 2 * (72*([1.]+4*[0.]) + 7*5*[0.])
 
 load_beam_from_folder = None #'bunch_states_turn0'
 
@@ -60,18 +60,18 @@ L_ecloud_tot = 20e3
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 30
+        self.N_turns = 96
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
-        self.N_parellel_rings = 3
+        self.N_parellel_rings = 96
         
         self.n_slices_per_bunch = 200
         self.z_cut_slicing = 3*sigma_z_bunch
         self.N_pieces_per_transfer = 300
         self.verbose = False
-        self.mpi_verbose = True
+        self.mpi_verbose = False
         self.enable_barriers = True
-        self.save_beam_at_turns = [5]
+        self.save_beam_at_turns = []
 
     def init_all(self):
         
@@ -172,7 +172,7 @@ class Simulation(object):
         from PyHEADTAIL.particles.slicing import UniformBinSlicer
         
         # Manage multi-run operation
-        import PyPARIS_sim_class.Save_Load_Status as SLS
+        import Save_Load_Status as SLS
         SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
                 check_for_resubmit = False, N_turns_target=N_turns_target)
         SimSt.before_simulation()
