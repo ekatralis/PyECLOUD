@@ -42,7 +42,7 @@ filling_pattern = 2 * (72*([1.]+4*[0.]) + 7*5*[0.])
 
 load_beam_from_folder = None #'bunch_states_turn0'
 
-macroparticlenumber = 1000 #1000000
+macroparticlenumber = 1000000
 min_inten_slice4EC = 1e7
 
 x_kick_in_sigmas = 0.25
@@ -50,7 +50,7 @@ y_kick_in_sigmas = 0.25
 
 target_size_internal_grid_sigma = 10.
 
-enable_ecloud = False #True
+enable_ecloud = True
 
 enable_kick_x = True
 enable_kick_y = False
@@ -60,7 +60,7 @@ L_ecloud_tot = 20e3
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 96
+        self.N_turns = 576
         self.N_buffer_float_size = 10000000
         self.N_buffer_int_size = 20
         self.N_parellel_rings = 96
