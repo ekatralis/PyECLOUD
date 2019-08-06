@@ -10,26 +10,32 @@ class SimulationStatus(object):
         
         self.filename = 'simulation_status.sta'
     
-    def dump_to_file(self):
+    def to_string(self):
         lines = []
-        lines.append('present_simulation_part = %d\n'%self.present_simulation_part)
-        lines.append('first_turn_part = %d\n'%self.first_turn_part)
-        lines.append('last_turn_part = %d\n'%self.last_turn_part)
-        lines.append('present_part_done = %s\n'%repr(self.present_part_done))
-        lines.append('present_part_running = %s\n'%repr(self.present_part_running))
-        
-        with open(self.filename, 'w') as fid:
-            fid.writelines(lines)
-            
-    def load_from_file(self):
+        lines.append('present_simulation_part = %d'%self.present_simulation_part)
+        lines.append('first_turn_part = %d'%self.first_turn_part)
+        lines.append('last_turn_part = %d'%self.last_turn_part)
+        lines.append('present_part_done = %s'%repr(self.present_part_done))
+        lines.append('present_part_running = %s'%repr(self.present_part_running))
+
+        return '\n'.join(lines)
+
+    def from_string(self, string):
         ddd = {}
-        with open(self.filename) as fid:
-            exec(fid.read(), ddd)
+        exec(string, ddd)
         self.present_simulation_part = ddd['present_simulation_part']
         self.first_turn_part = ddd['first_turn_part']
         self.last_turn_part = ddd['last_turn_part']
         self.present_part_done = ddd['present_part_done']
-        self.present_part_running = ddd['present_part_running']
+        self.present_part_running = ddd['present_part_running']        
+
+    def dump_to_file(self):
+        with open(self.filename, 'w') as fid:
+            fid.write(self.to_string())
+            
+    def load_from_file(self):
+        with open(self.filename) as fid:
+            self.from_string(fid.read())
         
     def print_from_file(self):
         with open(self.filename) as fid:

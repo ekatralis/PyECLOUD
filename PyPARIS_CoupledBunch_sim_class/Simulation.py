@@ -11,6 +11,8 @@ import PyECLOUD.myfilemanager as mfm
 
 from PyHEADTAIL.particles.slicing import UniformBinSlicer
 
+import Save_Load_Status as SLS
+
 N_turns_target = 20000
 
 sigma_z_bunch = 10e-2
@@ -73,10 +75,25 @@ class Simulation(object):
         self.enable_barriers = True
         self.save_beam_at_turns = []
 
-    def init_all(self):
+
+    def pre_init_master(self):
+        # Manage multi-run operation
+        SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
+                check_for_resubmit = False, N_turns_target=N_turns_target)
+        SimSt.before_simulation()
+
+        return [SimSt.to_string()]
+        
+
+    def init_all(self, from_master):
         
         print('Exec init...')
-        
+
+        # Manage multi-run operation
+        self.SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
+                check_for_resubmit = False, N_turns_target=N_turns_target)        
+        self.SimSt.from_string(from_master[0])
+
         from LHC_custom import LHC
         self.machine = LHC(n_segments = n_segments, machine_configuration = machine_configuration,
                         Qp_x=Qp_x, Qp_y=Qp_y,
@@ -125,7 +142,7 @@ class Simulation(object):
                     #x_beam_offset = x_beam_offset,
                     #y_beam_offset = y_beam_offset,
                     #probes_position = probes_position,
-                    save_pyecl_outp_as = 'cloud_evol_ring%d'%self.ring_of_CPUs.myring,
+                    save_pyecl_outp_as = 'cloud_evol_ring%d_part%d' % (self.ring_of_CPUs.myring, self.SimSt.present_simulation_part),
                     save_only = ['lam_t_array', 'nel_hist', 'Nel_timep', 't', 't_hist', 'xg_hist'],
                     sparse_solver = 'PyKLU', enable_kick_x=enable_kick_x, enable_kick_y=enable_kick_y)
             print('Done.')
@@ -171,14 +188,7 @@ class Simulation(object):
         from scipy.constants import c as clight, e as qe
         from PyHEADTAIL.particles.slicing import UniformBinSlicer
         
-        # Manage multi-run operation
-        import Save_Load_Status as SLS
-        SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
-                check_for_resubmit = False, N_turns_target=N_turns_target)
-        SimSt.before_simulation()
-        self.SimSt = SimSt
-
-        if SimSt.first_run:
+        if self.SimSt.first_run:
             if load_beam_from_folder is None:
                 print('Building the beam!')
                 list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
@@ -198,7 +208,7 @@ class Simulation(object):
         else:
             # Load from previous run
             print 'Loading beam from file...'
-            dirname = 'beam_status_part%02d'%(SimSt.present_simulation_part-1)
+            dirname = 'beam_status_part%02d'%(self.SimSt.present_simulation_part-1)
             list_bunches = gmb.load_multibunch_beam(dirname) 
             print 'Loaded beam from file.'
         
@@ -245,8 +255,6 @@ class Simulation(object):
                 n_stored_turns, slicer,  {'Comment':'PyHDTL simulation'}, 
                 write_buffer_every = 1, bunch_stats_to_store=stats_to_store,
                 slice_stats_to_store='mean_x mean_y mean_z n_macroparticles_per_slice'.split())
-        
-    
 
         # Save bunch properties
         if bunch.macroparticlenumber > 0 and bunch.slice_info['i_turn'] < self.N_turns:
