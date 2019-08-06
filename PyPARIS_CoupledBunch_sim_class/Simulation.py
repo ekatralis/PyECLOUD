@@ -13,51 +13,7 @@ from PyHEADTAIL.particles.slicing import UniformBinSlicer
 
 import Save_Load_Status as SLS
 
-N_turns_target = 20000
-
-sigma_z_bunch = 10e-2
-
-machine_configuration = 'HLLHC-injection'
-n_segments = 8
-
-octupole_knob = 0.0
-Qp_x = 0.
-Qp_y = 0.
-
-flag_aperture = True
-
-enable_transverse_damper = False
-dampingrate_x = 0.
-dampingrate_y = 0.
-
-# Beam properties
-non_linear_long_matching = False
-
-bunch_intensity = 1e11
-epsn_x = 2.5e-6
-epsn_y = 2.5e-6
-sigma_z = sigma_z_bunch
-
-#Filling pattern: here head is left and tail is right
-b_spac_s = 25e-9/5
-filling_pattern = 2 * (72*([1.]+4*[0.]) + 7*5*[0.])
-
-load_beam_from_folder = None #'bunch_states_turn0'
-
-macroparticlenumber = 1000000
-min_inten_slice4EC = 1e7
-
-x_kick_in_sigmas = 0.25
-y_kick_in_sigmas = 0.25
-
-target_size_internal_grid_sigma = 10.
-
-enable_ecloud = True
-
-enable_kick_x = True
-enable_kick_y = False
-
-L_ecloud_tot = 20e3
+flag_aperture = True # never tested otherwise
 
 
 class Simulation(object):
@@ -68,7 +24,7 @@ class Simulation(object):
         self.N_parellel_rings = 96
         
         self.n_slices_per_bunch = 200
-        self.z_cut_slicing = 3*sigma_z_bunch
+        self.z_cut_slicing = 3*sigma_z
         self.N_pieces_per_transfer = 300
         self.verbose = False
         self.mpi_verbose = False
@@ -124,27 +80,17 @@ class Simulation(object):
             import PyECLOUD.PyEC4PyHT as PyEC4PyHT
             ecloud = PyEC4PyHT.Ecloud(
                     L_ecloud=L_ecloud_tot/n_segments, slicer=None, slice_by_slice_mode=True,
-                    Dt_ref=5e-12, pyecl_input_folder='./pyecloud_config',
-                    chamb_type = 'polyg' ,
-                    filename_chm= 'LHC_chm_ver.mat', 
-                    #init_unif_edens_flag=1,
-                    #init_unif_edens=1e7,
-                    #N_mp_max = 3000000,
-                    #nel_mp_ref_0 = 1e7/(0.7*3000000),
-                    #B_multip = [0.],
-                    #~ PyPICmode = 'ShortleyWeller_WithTelescopicGrids',
-                    #~ f_telescope = 0.3,
-                    target_grid = {'x_min_target':-target_size_internal_grid_sigma*sigma_x_smooth, 'x_max_target':target_size_internal_grid_sigma*sigma_x_smooth,
-                                   'y_min_target':-target_size_internal_grid_sigma*sigma_y_smooth,'y_max_target':target_size_internal_grid_sigma*sigma_y_smooth,
-                                   'Dh_target':.2*sigma_x_smooth},
-                    #~ N_nodes_discard = 10.,
-                    #~ N_min_Dh_main = 10,
-                    #x_beam_offset = x_beam_offset,
-                    #y_beam_offset = y_beam_offset,
-                    #probes_position = probes_position,
-                    save_pyecl_outp_as = 'cloud_evol_ring%d_part%d' % (self.ring_of_CPUs.myring, self.SimSt.present_simulation_part),
-                    save_only = ['lam_t_array', 'nel_hist', 'Nel_timep', 't', 't_hist', 'xg_hist'],
-                    sparse_solver = 'PyKLU', enable_kick_x=enable_kick_x, enable_kick_y=enable_kick_y)
+                    Dt_ref=Dt_ref, pyecl_input_folder=pyecl_input_folder,
+                    chamb_type='polyg' ,
+                    filename_chm=filename_chm, 
+                    target_grid={'x_min_target':-target_size_internal_grid_sigma*sigma_x_smooth,
+                                 'x_max_target':target_size_internal_grid_sigma*sigma_x_smooth,
+                                 'y_min_target':-target_size_internal_grid_sigma*sigma_y_smooth,
+                                 'y_max_target':target_size_internal_grid_sigma*sigma_y_smooth,
+                                 'Dh_target':.2*sigma_x_smooth},
+                    save_pyecl_outp_as='cloud_evol_ring%d_part%d' % (self.ring_of_CPUs.myring, self.SimSt.present_simulation_part),
+                    save_only=save_only,
+                    sparse_solver='PyKLU', enable_kick_x=enable_kick_x, enable_kick_y=enable_kick_y)
             print('Done.')
 
 
