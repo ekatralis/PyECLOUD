@@ -7,6 +7,7 @@ class SimulationStatus(object):
         self.N_turns_target = N_turns_target
         self.N_turns_per_run = N_turns_per_run
         self.check_for_resubmit = check_for_resubmit
+        self.first_run = False
         
         self.filename = 'simulation_status.sta'
     
@@ -42,7 +43,6 @@ class SimulationStatus(object):
             print fid.read()
     
     def before_simulation(self):
-        self.first_run = False
         try:
             self.load_from_file()
             self.present_simulation_part+=1
