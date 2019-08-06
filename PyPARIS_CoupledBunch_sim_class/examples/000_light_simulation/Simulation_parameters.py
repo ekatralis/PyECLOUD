@@ -4,7 +4,7 @@
 ####################
 
 machine_configuration = 'HLLHC-injection'
-n_segments = 8
+n_segments = 6
 
 Qp_x = 0.
 Qp_y = 0.
@@ -28,7 +28,7 @@ sigma_z = 10e-2
 # Beam properties
 #Filling pattern: here head is left and tail is right
 b_spac_s = 25e-9/5
-filling_pattern = 2 * (72*([1.]+4*[0.]) + 7*5*[0.])
+filling_pattern = 1 * (3*([1.]+4*[0.]) + 1*5*[0.])
 
 load_beam_from_folder = None #'bunch_states_turn0'
 
@@ -45,7 +45,7 @@ y_kick_in_sigmas = 0.25
 ####################
 
 n_slices_per_bunch = 200
-z_cut_slicing = 3*sigma_z_bunch
+z_cut_slicing = 3*sigma_z
 min_inten_slice4EC = 1e7
 
 #######################
@@ -53,8 +53,8 @@ min_inten_slice4EC = 1e7
 #######################
 
 N_turns_target = 20000
-N_turns = 576
-N_parellel_rings = 96
+N_turns = 9
+N_parellel_rings = 3
 N_pieces_per_transfer = n_slices_per_bunch + 1
 verbose = False
 mpi_verbose = False
@@ -77,7 +77,7 @@ slice_stats_to_store='mean_x mean_y mean_z n_macroparticles_per_slice'.split()
 # e-cloud settings #
 ####################
 
-enable_ecloud = True
+enable_ecloud = False
 
 enable_kick_x = True
 enable_kick_y = False

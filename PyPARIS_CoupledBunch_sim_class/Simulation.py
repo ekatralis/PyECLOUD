@@ -13,6 +13,8 @@ from PyHEADTAIL.particles.slicing import UniformBinSlicer
 
 import Save_Load_Status as SLS
 
+import Simulation_parameters as pp
+
 flag_aperture = True # never tested otherwise
 
 
