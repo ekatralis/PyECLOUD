@@ -7,7 +7,6 @@ class SimulationStatus(object):
         self.N_turns_target = N_turns_target
         self.N_turns_per_run = N_turns_per_run
         self.check_for_resubmit = check_for_resubmit
-        self.first_run = False
         
         self.filename = 'simulation_status.sta'
     
@@ -18,6 +17,7 @@ class SimulationStatus(object):
         lines.append('last_turn_part = %d'%self.last_turn_part)
         lines.append('present_part_done = %s'%repr(self.present_part_done))
         lines.append('present_part_running = %s'%repr(self.present_part_running))
+        lines.append('first_run = %s'%repr(self.first_run))
 
         return '\n'.join(lines)
 
@@ -29,6 +29,7 @@ class SimulationStatus(object):
         self.last_turn_part = ddd['last_turn_part']
         self.present_part_done = ddd['present_part_done']
         self.present_part_running = ddd['present_part_running']        
+        self.first_run = ddd['first_run']
 
     def dump_to_file(self):
         with open(self.filename, 'w') as fid:
@@ -50,10 +51,10 @@ class SimulationStatus(object):
             self.last_turn_part += self.N_turns_per_run
         except IOError:
             print 'Simulation Status not found --> initializing simulation'
-            self.first_run = True
             self.present_simulation_part = 0
             self.first_turn_part = 0
             self.last_turn_part = self.N_turns_per_run-1
+            self.first_run = True
             self.present_part_done = True
             self.present_part_running = False
             
