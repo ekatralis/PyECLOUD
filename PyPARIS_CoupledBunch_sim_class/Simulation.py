@@ -39,7 +39,6 @@ class Simulation(object):
         SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
                 check_for_resubmit = False, N_turns_target=pp.N_turns_target)
         SimSt.before_simulation()
-
         return [SimSt.to_string()]
         
 
@@ -65,8 +64,8 @@ class Simulation(object):
         if flag_aperture:
             # setup transverse losses (to "protect" the ecloud)
             import PyHEADTAIL.aperture.aperture as aperture
-            apt_xy = aperture.EllipticalApertureXY(x_aper=target_size_internal_grid_sigma*sigma_x_smooth, 
-                                                   y_aper=target_size_internal_grid_sigma*sigma_x_smooth)
+            apt_xy = aperture.EllipticalApertureXY(x_aper=pp.target_size_internal_grid_sigma*sigma_x_smooth, 
+                                                   y_aper=pp.target_size_internal_grid_sigma*sigma_x_smooth)
             self.machine.one_turn_map.append(apt_xy)
             self.n_non_parallelizable +=1 
 
