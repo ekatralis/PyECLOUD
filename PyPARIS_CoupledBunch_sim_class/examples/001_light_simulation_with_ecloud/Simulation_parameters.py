@@ -4,7 +4,7 @@
 ####################
 
 machine_configuration = 'HLLHC-injection'
-n_segments = 6
+n_segments = 2
 
 Qp_x = 0.
 Qp_y = 0.
@@ -28,11 +28,11 @@ sigma_z = 10e-2
 # Beam properties
 #Filling pattern: here head is left and tail is right
 b_spac_s = 25e-9/5
-filling_pattern = 1 * (3*([1.]+4*[0.]) + 1*5*[0.])
+filling_pattern = 1 * (2*([1.]+4*[0.]) )
 
 load_beam_from_folder = None #'bunch_states_turn0'
 
-macroparticlenumber = 1000000
+macroparticlenumber = 100000
 
 non_linear_long_matching = False
 
@@ -44,7 +44,7 @@ y_kick_in_sigmas = 0.25
 # Slicing settings #
 ####################
 
-n_slices_per_bunch = 200
+n_slices_per_bunch = 100
 z_cut_slicing = 3*sigma_z
 min_inten_slice4EC = 1e7
 
@@ -53,7 +53,7 @@ min_inten_slice4EC = 1e7
 #######################
 
 N_turns_target = 20000
-N_turns = 6 
+N_turns = 3 
 N_parellel_rings = 3
 N_pieces_per_transfer = n_slices_per_bunch + 1
 verbose = False
@@ -85,8 +85,8 @@ enable_kick_y = False
 L_ecloud_tot = 20e3
 
 target_size_internal_grid_sigma = 10.
-Dt_ref=5e-12
-pyecl_input_folder='./pyecloud_config'
+Dt_ref = 25e-12
+pyecl_input_folder = './pyecloud_config'
 chamb_type = 'polyg' 
 filename_chm = 'LHC_chm_ver.mat'
 save_only = ['lam_t_array', 'nel_hist', 'Nel_timep', 't', 't_hist', 'xg_hist']

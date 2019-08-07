@@ -13,7 +13,7 @@ import PyECLOUD.mystyle as ms
 tag = 'noecloud'
 i_bunch = 0
 
-flag_check_damp_time = True
+flag_check_damp_time = False
 tau_damp_x = 20.
 tau_damp_y = 200000.
 
