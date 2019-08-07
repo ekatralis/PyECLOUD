@@ -5,7 +5,7 @@ import PyPARIS.myfilemanager as mfm
 sim_folder = '.'
 tag = 'noecloud'
 n_rings = 3
-n_parts = 3 
+n_parts = 4 
 
 to_be_saved = [
  'epsn_x',

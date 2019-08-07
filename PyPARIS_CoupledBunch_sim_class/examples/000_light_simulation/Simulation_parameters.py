@@ -11,9 +11,9 @@ Qp_y = 0.
 octupole_knob = 0.0
 
 # Transverse Damper Settings
-enable_transverse_damper = False
-dampingrate_x = 0.
-dampingrate_y = 0.
+enable_transverse_damper = True
+dampingrate_x = 20.
+dampingrate_y = 300000.
 
 
 ###################
@@ -53,7 +53,7 @@ min_inten_slice4EC = 1e7
 #######################
 
 N_turns_target = 20000
-N_turns = 9
+N_turns = 6 
 N_parellel_rings = 3
 N_pieces_per_transfer = n_slices_per_bunch + 1
 verbose = False

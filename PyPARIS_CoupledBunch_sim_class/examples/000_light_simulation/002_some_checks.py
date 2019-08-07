@@ -14,8 +14,8 @@ tag = 'noecloud'
 i_bunch = 0
 
 flag_check_damp_time = True
-tau_damp_x = 200000.
-tau_damp_y = 20.
+tau_damp_x = 20.
+tau_damp_y = 200000.
 
 flag_check_Qs = True
 Q_s = 5.664e-03

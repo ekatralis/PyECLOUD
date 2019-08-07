@@ -49,6 +49,7 @@ class SimulationStatus(object):
             self.present_simulation_part+=1
             self.first_turn_part += self.N_turns_per_run
             self.last_turn_part += self.N_turns_per_run
+            self.first_run = False
         except IOError:
             print 'Simulation Status not found --> initializing simulation'
             self.present_simulation_part = 0
