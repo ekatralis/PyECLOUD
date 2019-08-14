@@ -1,4 +1,6 @@
 
+resubmit_command = None
+
 ####################
 # Machine Settings #
 ####################

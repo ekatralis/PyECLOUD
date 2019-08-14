@@ -3,10 +3,10 @@ import h5py
 import os
 
 class SimulationStatus(object):
-    def __init__(self,  N_turns_per_run=None, N_turns_target=None, check_for_resubmit=False):
+    def __init__(self,  N_turns_per_run=None, N_turns_target=None, resubmit_command=None):
         self.N_turns_target = N_turns_target
         self.N_turns_per_run = N_turns_per_run
-        self.check_for_resubmit = check_for_resubmit
+        self.resubmit_command = resubmit_command
         
         self.filename = 'simulation_status.sta'
     
@@ -81,11 +81,11 @@ class SimulationStatus(object):
         self.print_from_file()
         print '\n\n'
         
-        if self.check_for_resubmit:
+        if self.resubmit_command is not None:
             
             if self.last_turn_part+1<self.N_turns_target:
                 print 'resubmit the job'
-                os.system('bsub < job.cmd')
+                os.system(self.resubmit_command)
                 
     def restart_last(self):
         
