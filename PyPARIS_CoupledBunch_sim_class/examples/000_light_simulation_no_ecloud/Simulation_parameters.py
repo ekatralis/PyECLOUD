@@ -3,6 +3,7 @@
 # Machine Settings #
 ####################
 
+machine_class_path = 'PyPARIS_CoupledBunch_sim_class.LHC_custom.LHC'
 machine_configuration = 'HLLHC-injection'
 n_segments = 6
 

@@ -1,5 +1,6 @@
 import types
 import os
+import importlib
 
 import numpy as np
 from scipy.constants import c
@@ -51,10 +52,15 @@ class Simulation(object):
                 check_for_resubmit = False, N_turns_target=pp.N_turns_target)        
         self.SimSt.from_string(from_master[0])
 
-        from LHC_custom import LHC
-        self.machine = LHC(n_segments=pp.n_segments, machine_configuration=pp.machine_configuration,
+        machine_name_strings = pp.machine_class_path.split('.')
+        machine_module_name = '.'.join(machine_name_strings[:-1])
+        machine_class_name = machine_name_strings[-1]
+        machine_module = importlib.import_module(machine_module_name)
+        machine_class = getattr(machine_module, machine_class_name)
+        self.machine = machine_class(n_segments=pp.n_segments, machine_configuration=pp.machine_configuration,
                         Qp_x=pp.Qp_x, Qp_y=pp.Qp_y,
                         octupole_knob=pp.octupole_knob)
+
         self.n_non_parallelizable = 1 #RF
 
         inj_optics = self.machine.transverse_map.get_injection_optics()
