@@ -38,7 +38,7 @@ class Simulation(object):
     def pre_init_master(self):
         # Manage multi-run operation
         SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
-                check_for_resubmit = False, N_turns_target=pp.N_turns_target)
+                resubmit_command = pp.resubmit_command, N_turns_target=pp.N_turns_target)
         SimSt.before_simulation()
         return [SimSt.to_string()]
         
@@ -49,7 +49,7 @@ class Simulation(object):
 
         # Manage multi-run operation
         self.SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
-                check_for_resubmit = False, N_turns_target=pp.N_turns_target)        
+                resubmit_command = pp.resubmit_command, N_turns_target=pp.N_turns_target)        
         self.SimSt.from_string(from_master[0])
 
         machine_name_strings = pp.machine_class_path.split('.')
