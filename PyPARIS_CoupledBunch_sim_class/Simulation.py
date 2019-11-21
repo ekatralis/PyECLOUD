@@ -1,5 +1,6 @@
 import types
 import os
+import importlib
 
 import numpy as np
 from scipy.constants import c
@@ -11,123 +12,93 @@ import PyECLOUD.myfilemanager as mfm
 
 from PyHEADTAIL.particles.slicing import UniformBinSlicer
 
-N_turns_target = 20000
+import Save_Load_Status as SLS
 
-sigma_z_bunch = 10e-2
+import Simulation_parameters as pp
 
-machine_configuration = 'HLLHC-injection'
-n_segments = 8
-
-octupole_knob = 0.0
-Qp_x = 0.
-Qp_y = 0.
-
-flag_aperture = True
-
-enable_transverse_damper = False
-dampingrate_x = 0.
-dampingrate_y = 0.
-
-# Beam properties
-non_linear_long_matching = False
-
-bunch_intensity = 1e11
-epsn_x = 2.5e-6
-epsn_y = 2.5e-6
-sigma_z = sigma_z_bunch
-
-#Filling pattern: here head is left and tail is right
-b_spac_s = 25e-9/5
-filling_pattern = 2 * (72*([1.]+4*[0.]) + 7*5*[0.])
-
-load_beam_from_folder = None #'bunch_states_turn0'
-
-macroparticlenumber = 1000000
-min_inten_slice4EC = 1e7
-
-x_kick_in_sigmas = 0.25
-y_kick_in_sigmas = 0.25
-
-target_size_internal_grid_sigma = 10.
-
-enable_ecloud = True
-
-enable_kick_x = True
-enable_kick_y = False
-
-L_ecloud_tot = 20e3
+flag_aperture = True # never tested otherwise
 
 
 class Simulation(object):
     def __init__(self):
-        self.N_turns = 576
+        self.N_turns = pp.N_turns
         self.N_buffer_float_size = 10000000
-        self.N_buffer_int_size = 20
-        self.N_parellel_rings = 96
+        self.N_buffer_int_size = 200
+        self.N_parellel_rings = pp.N_parellel_rings
         
-        self.n_slices_per_bunch = 200
-        self.z_cut_slicing = 3*sigma_z_bunch
-        self.N_pieces_per_transfer = 300
-        self.verbose = False
-        self.mpi_verbose = False
-        self.enable_barriers = True
-        self.save_beam_at_turns = []
+        self.n_slices_per_bunch = pp.n_slices_per_bunch
+        self.z_cut_slicing = pp.z_cut_slicing
+        self.N_pieces_per_transfer = pp.N_pieces_per_transfer 
+        self.verbose = pp.verbose
+        self.mpi_verbose = pp.mpi_verbose
+        self.enable_barriers = pp.enable_barriers
+        self.save_beam_at_turns = pp.save_beam_at_turns
 
-    def init_all(self):
+
+    def pre_init_master(self):
+        # Manage multi-run operation
+        SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
+                resubmit_command = pp.resubmit_command, N_turns_target=pp.N_turns_target)
+        SimSt.before_simulation()
+        return [SimSt.to_string()]
+        
+
+    def init_all(self, from_master):
         
         print('Exec init...')
-        
-        from LHC_custom import LHC
-        self.machine = LHC(n_segments = n_segments, machine_configuration = machine_configuration,
-                        Qp_x=Qp_x, Qp_y=Qp_y,
-                        octupole_knob=octupole_knob)
+
+        # Manage multi-run operation
+        self.SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
+                resubmit_command = pp.resubmit_command, N_turns_target=pp.N_turns_target)        
+        self.SimSt.from_string(from_master[0])
+
+        machine_name_strings = pp.machine_class_path.split('.')
+        machine_module_name = '.'.join(machine_name_strings[:-1])
+        machine_class_name = machine_name_strings[-1]
+        machine_module = importlib.import_module(machine_module_name)
+        machine_class = getattr(machine_module, machine_class_name)
+        self.machine = machine_class(n_segments=pp.n_segments, machine_configuration=pp.machine_configuration,
+                        Qp_x=pp.Qp_x, Qp_y=pp.Qp_y,
+                        octupole_knob=pp.octupole_knob)
+
         self.n_non_parallelizable = 1 #RF
 
         inj_optics = self.machine.transverse_map.get_injection_optics()
-        sigma_x_smooth = np.sqrt(inj_optics['beta_x']*epsn_x/self.machine.betagamma)
-        sigma_y_smooth = np.sqrt(inj_optics['beta_y']*epsn_y/self.machine.betagamma)
+        sigma_x_smooth = np.sqrt(inj_optics['beta_x']*pp.epsn_x/self.machine.betagamma)
+        sigma_y_smooth = np.sqrt(inj_optics['beta_y']*pp.epsn_y/self.machine.betagamma)
 
         if flag_aperture:
             # setup transverse losses (to "protect" the ecloud)
             import PyHEADTAIL.aperture.aperture as aperture
-            apt_xy = aperture.EllipticalApertureXY(x_aper=target_size_internal_grid_sigma*sigma_x_smooth, 
-                                                   y_aper=target_size_internal_grid_sigma*sigma_x_smooth)
+            apt_xy = aperture.EllipticalApertureXY(x_aper=pp.target_size_internal_grid_sigma*sigma_x_smooth, 
+                                                   y_aper=pp.target_size_internal_grid_sigma*sigma_x_smooth)
             self.machine.one_turn_map.append(apt_xy)
             self.n_non_parallelizable +=1 
 
-        if enable_transverse_damper:
+        if pp.enable_transverse_damper:
             # setup transverse damper
             from PyHEADTAIL.feedback.transverse_damper import TransverseDamper
-            damper = TransverseDamper(dampingrate_x=dampingrate_x, dampingrate_y=dampingrate_y)
+            damper = TransverseDamper(dampingrate_x=pp.dampingrate_x, dampingrate_y=pp.dampingrate_y)
             self.machine.one_turn_map.append(damper)
             self.n_non_parallelizable +=1
             
-        if enable_ecloud:
+        if pp.enable_ecloud:
             print('Build ecloud...')
             import PyECLOUD.PyEC4PyHT as PyEC4PyHT
             ecloud = PyEC4PyHT.Ecloud(
-                    L_ecloud=L_ecloud_tot/n_segments, slicer=None, slice_by_slice_mode=True,
-                    Dt_ref=5e-12, pyecl_input_folder='./pyecloud_config',
-                    chamb_type = 'polyg' ,
-                    filename_chm= 'LHC_chm_ver.mat', 
-                    #init_unif_edens_flag=1,
-                    #init_unif_edens=1e7,
-                    #N_mp_max = 3000000,
-                    #nel_mp_ref_0 = 1e7/(0.7*3000000),
-                    #B_multip = [0.],
-                    #~ PyPICmode = 'ShortleyWeller_WithTelescopicGrids',
-                    #~ f_telescope = 0.3,
-                    target_grid = {'x_min_target':-target_size_internal_grid_sigma*sigma_x_smooth, 'x_max_target':target_size_internal_grid_sigma*sigma_x_smooth,
-                                   'y_min_target':-target_size_internal_grid_sigma*sigma_y_smooth,'y_max_target':target_size_internal_grid_sigma*sigma_y_smooth,
-                                   'Dh_target':.2*sigma_x_smooth},
-                    #~ N_nodes_discard = 10.,
-                    #~ N_min_Dh_main = 10,
-                    #x_beam_offset = x_beam_offset,
-                    #y_beam_offset = y_beam_offset,
-                    #probes_position = probes_position,
-                    save_pyecl_outp_as = 'cloud_evol_ring%d'%self.ring_of_CPUs.myring,
-                    save_only = ['lam_t_array', 'nel_hist', 'Nel_timep', 't', 't_hist', 'xg_hist'],
-                    sparse_solver = 'PyKLU', enable_kick_x=enable_kick_x, enable_kick_y=enable_kick_y)
+                    L_ecloud=pp.L_ecloud_tot/pp.n_segments, slicer=None, slice_by_slice_mode=True,
+                    Dt_ref=pp.Dt_ref, pyecl_input_folder=pp.pyecl_input_folder,
+                    chamb_type=pp.chamb_type,
+                    filename_chm=pp.filename_chm, 
+                    target_grid={'x_min_target':-pp.target_size_internal_grid_sigma*sigma_x_smooth,
+                                 'x_max_target':pp.target_size_internal_grid_sigma*sigma_x_smooth,
+                                 'y_min_target':-pp.target_size_internal_grid_sigma*sigma_y_smooth,
+                                 'y_max_target':pp.target_size_internal_grid_sigma*sigma_y_smooth,
+                                 'Dh_target':.2*sigma_x_smooth},
+                    save_pyecl_outp_as='cloud_evol_part%03d_ring%03d' % (self.SimSt.present_simulation_part, 
+                        self.ring_of_CPUs.myring),
+                    save_only=pp.save_only,
+                    sparse_solver='PyKLU', enable_kick_x=pp.enable_kick_x, enable_kick_y=pp.enable_kick_y)
             print('Done.')
 
 
@@ -143,7 +114,7 @@ class Simulation(object):
             
 
         #install eclouds in my part
-        if enable_ecloud:
+        if pp.enable_ecloud:
             my_new_part = []
             self.my_list_eclouds = []
             for ele in self.mypart:
@@ -171,34 +142,28 @@ class Simulation(object):
         from scipy.constants import c as clight, e as qe
         from PyHEADTAIL.particles.slicing import UniformBinSlicer
         
-        # Manage multi-run operation
-        import Save_Load_Status as SLS
-        SimSt = SLS.SimulationStatus(N_turns_per_run=self.N_turns,
-                check_for_resubmit = False, N_turns_target=N_turns_target)
-        SimSt.before_simulation()
-        self.SimSt = SimSt
-
-        if SimSt.first_run:
-            if load_beam_from_folder is None:
+        if self.SimSt.first_run:
+            if pp.load_beam_from_folder is None:
                 print('Building the beam!')
-                list_bunches = gmb.gen_matched_multibunch_beam(self.machine, macroparticlenumber, filling_pattern, b_spac_s, 
-                    bunch_intensity, epsn_x, epsn_y, sigma_z, non_linear_long_matching, min_inten_slice4EC)
+                list_bunches = gmb.gen_matched_multibunch_beam(self.machine, pp.macroparticlenumber, 
+                        pp.filling_pattern, pp.b_spac_s, pp.bunch_intensity, 
+                        pp.epsn_x, pp.epsn_y, pp.sigma_z, pp.non_linear_long_matching, pp.min_inten_slice4EC)
                 # compute and apply initial displacements
                 inj_opt = self.machine.transverse_map.get_injection_optics()
-                sigma_x = np.sqrt(inj_opt['beta_x']*epsn_x/self.machine.betagamma)
-                sigma_y = np.sqrt(inj_opt['beta_y']*epsn_y/self.machine.betagamma)
-                x_kick = x_kick_in_sigmas*sigma_x
-                y_kick = y_kick_in_sigmas*sigma_y
+                sigma_x = np.sqrt(inj_opt['beta_x']*pp.epsn_x/self.machine.betagamma)
+                sigma_y = np.sqrt(inj_opt['beta_y']*pp.epsn_y/self.machine.betagamma)
+                x_kick = pp.x_kick_in_sigmas*sigma_x
+                y_kick = pp.y_kick_in_sigmas*sigma_y
                 for bunch in list_bunches:
                     bunch.x += x_kick
                     bunch.y += y_kick
             else:
                 # Load based on input
-                list_bunches = gmb.load_multibunch_beam(load_beam_from_folder)
+                list_bunches = gmb.load_multibunch_beam(pp.load_beam_from_folder)
         else:
             # Load from previous run
             print 'Loading beam from file...'
-            dirname = 'beam_status_part%02d'%(SimSt.present_simulation_part-1)
+            dirname = 'beam_status_part%02d'%(self.SimSt.present_simulation_part-1)
             list_bunches = gmb.load_multibunch_beam(dirname) 
             print 'Loaded beam from file.'
         
@@ -216,13 +181,9 @@ class Simulation(object):
         if self.bunch_monitor is None:
             
             simstate_part = bunch.slice_info['simstate_part']
-            stats_to_store = [
-             'mean_x', 'mean_xp', 'mean_y', 'mean_yp', 'mean_z', 'mean_dp',
-             'sigma_x', 'sigma_y', 'sigma_z','sigma_dp', 'epsn_x', 'epsn_y',
-             'epsn_z', 'macroparticlenumber',
-             'i_bunch', 'i_turn']
+            stats_to_store = pp.stats_to_store
 
-            n_stored_turns = np.sum(np.array(filling_pattern)>0)*(\
+            n_stored_turns = np.sum(np.array(pp.filling_pattern)>0)*(\
                 self.ring_of_CPUs.N_turns/self.ring_of_CPUs.N_parellel_rings\
                 + self.ring_of_CPUs.N_parellel_rings)
 
@@ -244,9 +205,7 @@ class Simulation(object):
                 simstate_part, self.ring_of_CPUs.myring),
                 n_stored_turns, slicer,  {'Comment':'PyHDTL simulation'}, 
                 write_buffer_every = 1, bunch_stats_to_store=stats_to_store,
-                slice_stats_to_store='mean_x mean_y mean_z n_macroparticles_per_slice'.split())
-        
-    
+                slice_stats_to_store=pp.slice_stats_to_store)
 
         # Save bunch properties
         if bunch.macroparticlenumber > 0 and bunch.slice_info['i_turn'] < self.N_turns:
