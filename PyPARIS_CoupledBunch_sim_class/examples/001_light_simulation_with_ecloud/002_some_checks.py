@@ -37,15 +37,15 @@ axy.plot(ob.mean_y[:, i_bunch])
 
 if flag_check_damp_time:
     turn_num = np.arange(0, len(ob.mean_x[:, i_bunch]), dtype=np.float)
-    axx.plot(ob.mean_x[0, i_bunch]*np.exp(-turn_num/tau_damp_x), 
+    axx.plot(ob.mean_x[0, i_bunch]*np.exp(-turn_num/tau_damp_x),
             linewidth=2, color='red', linestyle='--',
             label=r'Damping time = %.0f turns'%tau_damp_x)
-    axy.plot(ob.mean_y[0, i_bunch]*np.exp(-turn_num/tau_damp_y), 
+    axy.plot(ob.mean_y[0, i_bunch]*np.exp(-turn_num/tau_damp_y),
             linewidth=2, color='red', linestyle='--',
             label=r'Damping time = %.0f turns'%tau_damp_y)
 
-axx.legend(prop={'size':14}).draggable()
-axy.legend(prop={'size':14}).draggable()
+axx.legend(prop={'size':14})
+axy.legend(prop={'size':14})
 
 axx.set_ylabel('x [m]')
 axy.set_ylabel('y [m]')
