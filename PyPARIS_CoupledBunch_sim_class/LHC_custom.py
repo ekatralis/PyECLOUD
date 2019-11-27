@@ -65,7 +65,7 @@ class LHC(BasicSynchrotron):
         i_octupole_defocusing = None
         octupole_knob = None	
         
-        for attr in kwargs.keys():
+        for attr in list(kwargs.keys()):
             if kwargs[attr] is not None:
                 if type(kwargs[attr]) is list or type(kwargs[attr]) is np.ndarray:
                     str2print = '[%s ...]'%repr(kwargs[attr][0])

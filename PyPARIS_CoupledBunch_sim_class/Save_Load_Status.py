@@ -41,7 +41,7 @@ class SimulationStatus(object):
         
     def print_from_file(self):
         with open(self.filename) as fid:
-            print fid.read()
+            print(fid.read())
     
     def before_simulation(self):
         try:
@@ -51,7 +51,7 @@ class SimulationStatus(object):
             self.last_turn_part += self.N_turns_per_run
             self.first_run = False
         except IOError:
-            print 'Simulation Status not found --> initializing simulation'
+            print('Simulation Status not found --> initializing simulation')
             self.present_simulation_part = 0
             self.first_turn_part = 0
             self.last_turn_part = self.N_turns_per_run-1
@@ -67,9 +67,9 @@ class SimulationStatus(object):
         
         self.dump_to_file()
         
-        print 'Starting part:\n\n'
+        print('Starting part:\n\n')
         self.print_from_file()
-        print '\n\n'
+        print('\n\n')
         
     def after_simulation(self):
         self.load_from_file()
@@ -77,14 +77,14 @@ class SimulationStatus(object):
         self.present_part_running = False
         self.dump_to_file()
         
-        print 'Done part:\n\n'
+        print('Done part:\n\n')
         self.print_from_file()
-        print '\n\n'
+        print('\n\n')
         
         if self.resubmit_command is not None:
             
             if self.last_turn_part+1<self.N_turns_target:
-                print 'resubmit the job'
+                print('resubmit the job')
                 os.system(self.resubmit_command)
                 
     def restart_last(self):
@@ -101,7 +101,7 @@ class SimulationStatus(object):
         
         self.dump_to_file()
         
-        print 'Restored status:\n\n'
+        print('Restored status:\n\n')
         self.print_from_file()
-        print '\n\n'
+        print('\n\n')
 

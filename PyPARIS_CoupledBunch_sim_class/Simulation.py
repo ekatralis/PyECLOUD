@@ -12,7 +12,7 @@ import PyECLOUD.myfilemanager as mfm
 
 from PyHEADTAIL.particles.slicing import UniformBinSlicer
 
-import Save_Load_Status as SLS
+from . import Save_Load_Status as SLS
 
 import Simulation_parameters as pp
 
@@ -131,9 +131,9 @@ class Simulation(object):
 
             self.mypart = my_new_part
             
-            print('Hello, I am %d.%d, my part looks like: %s. Saver status: %s'%(
+            print(('Hello, I am %d.%d, my part looks like: %s. Saver status: %s'%(
                 self.ring_of_CPUs.myring, self.ring_of_CPUs.myid_in_ring, self.mypart, 
-                [(ec.cloudsim.cloud_list[0].pyeclsaver is not None) for ec in self.my_list_eclouds]))
+                [(ec.cloudsim.cloud_list[0].pyeclsaver is not None) for ec in self.my_list_eclouds])))
             
        
     def init_master(self):
@@ -162,10 +162,10 @@ class Simulation(object):
                 list_bunches = gmb.load_multibunch_beam(pp.load_beam_from_folder)
         else:
             # Load from previous run
-            print 'Loading beam from file...'
+            print('Loading beam from file...')
             dirname = 'beam_status_part%02d'%(self.SimSt.present_simulation_part-1)
             list_bunches = gmb.load_multibunch_beam(dirname) 
-            print 'Loaded beam from file.'
+            print('Loaded beam from file.')
         
         for bb in list_bunches:
             bb.slice_info['simstate_part'] = self.SimSt.present_simulation_part
