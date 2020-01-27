@@ -10,8 +10,7 @@ mkdir /hpcscratch/user/lmether/sim_workspace
 module load mpi/mvapich2/2.2
 ```
 
-* Build our software stack in this folder by following the instructions here: https://github.com/PyCOMPLETE/PyECLOUD/wiki/Setup-python-%28including-mpi4py%29-without-admin-rights
-
+* Build our software stack in this folder by following the instructions here: https://github.com/PyCOMPLETE/PyECLOUD/wiki/Setup-python-3-%28including-mpi4py%29-without-admin-rights
 * Clone this example into the simulation workspace
 ```
 cd /hpcscratch/user/lmether/sim_workspace
