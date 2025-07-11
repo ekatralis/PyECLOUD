@@ -77,7 +77,7 @@ class SimulationStatus(object):
             
             if self.last_turn_part+1<self.N_turns_target:
                 print('resubmit the job')
-                os.system('bsub < job.cmd')
+                os.system('sbatch job.cmd')
                 
     def restart_last(self):
         
