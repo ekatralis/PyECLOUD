@@ -24,9 +24,24 @@ def myloadmat(filename, squeeze = True):
             except:
                 pass
     return dict_var
+    
 
 def myloadmat_to_obj(filename, squeeze = True):
     return  obj_from_dict(myloadmat(filename, squeeze=squeeze))
+
+def myloadh5(filename, squeeze = True):
+    import hdf5storage
+    dict_var=hdf5storage.loadmat(filename)
+    if squeeze:
+        for kk in list(dict_var.keys()):
+            try:
+                dict_var[kk]=np.squeeze(dict_var[kk])
+            except:
+                pass
+    return dict_var
+
+def myloadh5_to_obj(filename, squeeze = True):
+    return  obj_from_dict(myloadh5(filename, squeeze=squeeze))
 
 def dict_of_arrays_and_scalar_from_h5(filename):
     import h5py
