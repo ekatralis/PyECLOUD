@@ -137,7 +137,7 @@ class pyecloud_saver:
                         ):
         print('Start pyecloud_saver observation')
 
-        self.filen_main_outp = filen_main_outp
+        self.filen_main_outp = os.path.splitext(filen_main_outp)[0] + self.pyeclsavermode
 
         self.save_only = save_only
 
@@ -318,7 +318,7 @@ class pyecloud_saver:
                 if self.pyeclsavermode == ".mat":
                     sio.savemat(self.filen_main_outp, self.build_outp_dict(buildup_sim), oned_as='row')
                 elif self.pyeclsavermode == ".h5":
-                    hdf5storage.write(self.build_outp_dict(buildup_sim),filename=self.filen_main_outp, matlab_compatible=True)
+                    hdf5storage.write(self.build_outp_dict(buildup_sim),filename=self.filen_main_outp, matlab_compatible=False)
 
             # Check for checkpoint save state
             self._checkpoint_save(beamtim, spacech_ele, t_sc_ON, flag_presence_sec_beams,
@@ -948,7 +948,7 @@ class pyecloud_saver:
                                                 'vx_mp': MP_e.vx_mp[0:MP_e.N_mp], 'vy_mp': MP_e.vy_mp[0:MP_e.N_mp], 'vz_mp': MP_e.vz_mp[0:MP_e.N_mp], 'nel_mp': MP_e.nel_mp[0:MP_e.N_mp]}, oned_as='row')
                     elif self.pyeclsavermode == ".h5":
                         hdf5storage.write({'tt': beamtim.tt_curr, 'N_mp': MP_e.N_mp, 'x_mp': MP_e.x_mp[0:MP_e.N_mp], 'y_mp': MP_e.y_mp[0:MP_e.N_mp], 'z_mp': MP_e.z_mp[0:MP_e.N_mp],\
-                                            'vx_mp': MP_e.vx_mp[0:MP_e.N_mp], 'vy_mp': MP_e.vy_mp[0:MP_e.N_mp], 'vz_mp': MP_e.vz_mp[0:MP_e.N_mp], 'nel_mp': MP_e.nel_mp[0:MP_e.N_mp]},filename=path_MP_state, matlab_compatible=True)
+                                            'vx_mp': MP_e.vx_mp[0:MP_e.N_mp], 'vy_mp': MP_e.vy_mp[0:MP_e.N_mp], 'vz_mp': MP_e.vz_mp[0:MP_e.N_mp], 'nel_mp': MP_e.nel_mp[0:MP_e.N_mp]},filename=path_MP_state, matlab_compatible=False)
                     
                     print('Save MP state in: ' + path_MP_state)
                     self.i_obs = self.i_obs + 1
@@ -1075,7 +1075,7 @@ class pyecloud_saver:
                 if self.pyeclsavermode == ".mat":
                     sio.savemat(filename_rho, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video, 'rho_video': self.rho_video}, oned_as='row')
                 elif self.pyeclsavermode == ".h5":
-                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video, 'rho_video': self.rho_video},filename=filename_rho, matlab_compatible=True)
+                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video, 'rho_video': self.rho_video},filename=filename_rho, matlab_compatible=False)
                 print('Done')
                 self.rho_video = []
                 self.t_video = []
@@ -1101,7 +1101,7 @@ class pyecloud_saver:
                 if self.pyeclsavermode == ".mat":
                     sio.savemat(filename_rho, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video_cloud, 'rho_video': self.rho_video_cloud}, oned_as='row')
                 elif self.pyeclsavermode == ".h5":
-                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video_cloud, 'rho_video': self.rho_video_cloud},filename=filename_rho, matlab_compatible=True)
+                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video_cloud, 'rho_video': self.rho_video_cloud},filename=filename_rho, matlab_compatible=False)
                 print('Done')
                 self.rho_video_cloud = []
                 self.t_video_cloud = []
@@ -1137,7 +1137,7 @@ class pyecloud_saver:
                                               'efx_video': self.efx_video, 'efy_video': self.efy_video}, oned_as='row')
                 elif self.pyeclsavermode == ".h5":
                     hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_efield_video': self.t_efield_video,
-                                        'efx_video': self.efx_video, 'efy_video': self.efy_video},filename=filename_efield, matlab_compatible=True)
+                                        'efx_video': self.efx_video, 'efy_video': self.efy_video},filename=filename_efield, matlab_compatible=False)
                 print('Done')
                 print('Done')
                 self.efx_video = []
