@@ -66,13 +66,20 @@ try:
 except ImportError:
     # No cPickle in python3
     import pickle
+import hdf5storage
 
 
 class pyecloud_saver:
 
-    def __init__(self, logfile_path):
+    def __init__(self, logfile_path, pyeclsavermode):
         print('Starting pyecloud_saver init.')
         self.logfile_path = logfile_path
+        if pyeclsavermode is None or pyeclsavermode == "mat":
+            self.pyeclsavermode = ".mat"
+        elif pyeclsavermode == "hdf5":
+            self.pyeclsavermode = ".hdf5"
+        else:
+            raise Exception("pyeclsavermode can either be 'mat' or 'hdf5'")
         timestr = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
 
         # These git commands return the hash and the branch of the specified git directory.
@@ -308,7 +315,10 @@ class pyecloud_saver:
             self.area = impact_man.chamb.area
 
             if (beamtim.pass_numb + 1) % self.save_mat_every == 0:
-                sio.savemat(self.filen_main_outp, self.build_outp_dict(buildup_sim), oned_as='row')
+                if self.pyeclsavermode == ".mat":
+                    sio.savemat(self.filen_main_outp, self.build_outp_dict(buildup_sim), oned_as='row')
+                elif self.pyeclsavermode == ".hdf5":
+                    hdf5storage.write(self.build_outp_dict(buildup_sim),filename=self.filen_main_outp, matlab_compatible=True)
 
             # Check for checkpoint save state
             self._checkpoint_save(beamtim, spacech_ele, t_sc_ON, flag_presence_sec_beams,
@@ -927,9 +937,13 @@ class pyecloud_saver:
                     else:
                         filename_MP_state = 'MP_state_%d'%(self.i_obs)
                     path_MP_state = self.folder_outp + '/' + filename_MP_state
-                    sio.savemat(path_MP_state, {'tt': beamtim.tt_curr, 'N_mp': MP_e.N_mp, 'x_mp': MP_e.x_mp[0:MP_e.N_mp], 'y_mp': MP_e.y_mp[0:MP_e.N_mp], 'z_mp': MP_e.z_mp[0:MP_e.N_mp],\
+                    if self.pyeclsavermode == ".mat":
+                        sio.savemat(path_MP_state, {'tt': beamtim.tt_curr, 'N_mp': MP_e.N_mp, 'x_mp': MP_e.x_mp[0:MP_e.N_mp], 'y_mp': MP_e.y_mp[0:MP_e.N_mp], 'z_mp': MP_e.z_mp[0:MP_e.N_mp],\
                                                 'vx_mp': MP_e.vx_mp[0:MP_e.N_mp], 'vy_mp': MP_e.vy_mp[0:MP_e.N_mp], 'vz_mp': MP_e.vz_mp[0:MP_e.N_mp], 'nel_mp': MP_e.nel_mp[0:MP_e.N_mp]}, oned_as='row')
-
+                    elif self.pyeclsavermode == ".hdf5":
+                        hdf5storage.write({'tt': beamtim.tt_curr, 'N_mp': MP_e.N_mp, 'x_mp': MP_e.x_mp[0:MP_e.N_mp], 'y_mp': MP_e.y_mp[0:MP_e.N_mp], 'z_mp': MP_e.z_mp[0:MP_e.N_mp],\
+                                            'vx_mp': MP_e.vx_mp[0:MP_e.N_mp], 'vy_mp': MP_e.vy_mp[0:MP_e.N_mp], 'vz_mp': MP_e.vz_mp[0:MP_e.N_mp], 'nel_mp': MP_e.nel_mp[0:MP_e.N_mp]},filename=path_MP_state, matlab_compatible=True)
+                    
                     print('Save MP state in: ' + path_MP_state)
                     self.i_obs = self.i_obs + 1
 
@@ -1047,9 +1061,12 @@ class pyecloud_saver:
             if beamtim.flag_new_bunch_pass:
                 self.rho_video = np.array(self.rho_video)
                 self.t_video = np.array(self.t_video)
-                filename_rho = self.folder_outp + '/rho_video/rho_pass%d.mat'%(beamtim.pass_numb - 1)
+                filename_rho = self.folder_outp + '/rho_video/rho_pass%d'%(beamtim.pass_numb - 1) + self.pyeclsavermode
                 print('Saving %s'%filename_rho)
-                sio.savemat(filename_rho, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video, 'rho_video': self.rho_video}, oned_as='row')
+                if self.pyeclsavermode == ".mat":
+                    sio.savemat(filename_rho, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video, 'rho_video': self.rho_video}, oned_as='row')
+                elif self.pyeclsavermode == ".hdf5":
+                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video, 'rho_video': self.rho_video},filename=filename_rho, matlab_compatible=True)
                 print('Done')
                 self.rho_video = []
                 self.t_video = []
@@ -1070,9 +1087,12 @@ class pyecloud_saver:
             if beamtim.flag_new_bunch_pass:
                 self.rho_video_cloud = np.array(self.rho_video_cloud)
                 self.t_video_cloud = np.array(self.t_video_cloud)
-                filename_rho = self.folder_outp + 'rho_video_%s/rho_pass%d.mat'%(self.cloud_name, beamtim.pass_numb - 1)
+                filename_rho = self.folder_outp + 'rho_video_%s/rho_pass%d'%(self.cloud_name, beamtim.pass_numb - 1) + self.pyeclsavermode
                 print('Saving %s'%filename_rho)
-                sio.savemat(filename_rho, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video_cloud, 'rho_video': self.rho_video_cloud}, oned_as='row')
+                if self.pyeclsavermode == ".mat":
+                    sio.savemat(filename_rho, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video_cloud, 'rho_video': self.rho_video_cloud}, oned_as='row')
+                elif self.pyeclsavermode == ".hdf5":
+                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_video': self.t_video_cloud, 'rho_video': self.rho_video_cloud},filename=filename_rho, matlab_compatible=True)
                 print('Done')
                 self.rho_video_cloud = []
                 self.t_video_cloud = []
@@ -1101,10 +1121,15 @@ class pyecloud_saver:
                 self.efx_video = np.array(self.efx_video)
                 self.efy_video = np.array(self.efy_video)
                 self.t_efield_video = np.array(self.t_efield_video)
-                filename_efield = self.folder_outp + '/efield_video/efield_pass%d.mat'%(beamtim.pass_numb - 1)
+                filename_efield = self.folder_outp + '/efield_video/efield_pass%d'%(beamtim.pass_numb - 1) + self.pyeclsavermode
                 print('Saving %s'%filename_efield)
-                sio.savemat(filename_efield, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_efield_video': self.t_efield_video,
+                if self.pyeclsavermode == ".mat":
+                    sio.savemat(filename_efield, {'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_efield_video': self.t_efield_video,
                                               'efx_video': self.efx_video, 'efy_video': self.efy_video}, oned_as='row')
+                elif self.pyeclsavermode == ".hdf5":
+                    hdf5storage.write({'xg_sc': spacech_ele.xg, 'yg_sc': spacech_ele.yg, 't_efield_video': self.t_efield_video,
+                                        'efx_video': self.efx_video, 'efy_video': self.efy_video},filename=filename_efield, matlab_compatible=True)
+                print('Done')
                 print('Done')
                 self.efx_video = []
                 self.efy_video = []
