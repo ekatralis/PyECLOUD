@@ -159,7 +159,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
 
     # Init of saver (first print to stdout)
     if not skip_pyeclsaver:
-        pyeclsaver = pysav.pyecloud_saver(cc.logfile_path)
+        pyeclsaver = pysav.pyecloud_saver(cc.logfile_path, cc.pyeclsavermode)
     else:
         pyeclsaver = None
 
