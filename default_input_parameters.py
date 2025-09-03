@@ -67,7 +67,8 @@ parameters_dict = {
             'stopfile': 'stop',
 
             # Saving settings
-            'filen_main_outp': 'Pyecltest.mat',
+            'pyeclsavermode' : None,
+            'filen_main_outp': 'Pyecltest',
             'save_only': None,
             'flag_movie': 0,
             'flag_sc_movie': 0,
