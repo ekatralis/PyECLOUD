@@ -52,8 +52,11 @@
 
 import numpy as np
 from . import hist_for as histf
+from . import cupy_hist
 from . import seg_impact as segi
 from scipy.constants import e as qe
+from line_profiler import profile
+import cupy as cp
 
 class impact_management(object):
     def __init__(
@@ -168,7 +171,8 @@ class impact_management(object):
 
     def reset_lifetime_hist_line(self):
         self.lifetime_hist_line *= 0.
-
+        
+    @profile
     def backtrack_and_second_emiss(self, old_pos, MP_e, tt_curr=None):
 
         self.Nel_impact_last_step = 0.
@@ -261,8 +265,28 @@ class impact_management(object):
                 # electron histogram
                 histf.compute_hist(
                     x_impact, nel_impact, bias_x_hist, Dx_hist, self.nel_impact_hist_tot)
+                nar = lambda x: cp.asnumpy(x)
+                car = lambda x: cp.asarray(x)
+                hist_gpu = car(self.nel_impact_hist_scrub)
+                hist_gpu2 = hist_gpu.copy()
                 histf.compute_hist(x_impact, nel_impact * (E_impact_eV > scrub_en_th),
                                    bias_x_hist, Dx_hist, self.nel_impact_hist_scrub)
+                x_impact_gpu = car(x_impact)
+                second_arg_gpu = car(nel_impact * (E_impact_eV > scrub_en_th))
+                bias_x_hist_gpu = car(bias_x_hist)
+                Dx_hist_gpu = car(Dx_hist)
+                Nxg_gpu = car(hist_gpu.shape[0])
+                cupy_hist.compute_hist_rawkernel_notrans(x_impact_gpu, second_arg_gpu,
+                                   bias_x_hist, Dx_hist, self.Nxg_hist, hist = hist_gpu)
+                cupy_hist.compute_hist_rawkernel_notrans2(x_impact_gpu, second_arg_gpu,
+                                   bias_x_hist_gpu, Dx_hist_gpu, Nxg_gpu, hist = hist_gpu2)
+                np_hist_gpu = nar(hist_gpu)
+                np_hist_gpu2 = nar(hist_gpu2)
+
+                np.testing.assert_allclose(self.nel_impact_hist_scrub,np_hist_gpu,atol=1e-7,rtol = 1e-4)
+                np.testing.assert_allclose(self.nel_impact_hist_scrub,np_hist_gpu2,atol=1e-7,rtol = 1e-4)
+                
+                
                 histf.compute_hist(x_impact, nel_impact * E_impact_eV,
                                    bias_x_hist, Dx_hist, self.energ_eV_impact_hist)
 

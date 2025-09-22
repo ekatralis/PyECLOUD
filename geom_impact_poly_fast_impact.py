@@ -58,6 +58,128 @@ import numpy as np
 import numpy.random as random
 
 from . import geom_impact_poly_cython as gipc
+# from . import geom_impact_poly_cupy as gipcu
+# import cupy as cp
+from line_profiler import profile
+
+import cupy as cp
+
+# CUDA C kernel
+_is_outside_convex_src = r'''
+extern "C" __global__
+void is_outside_convex_kernel(
+    const double* __restrict__ x_mp,
+    const double* __restrict__ y_mp,
+    const int N_mp,
+    const double* __restrict__ Vx,
+    const double* __restrict__ Vy,
+    const int N_edg,         // number of edges; Vx/Vy must have N_edg+1 entries (last==first)
+    const double cx,
+    const double cy,
+    unsigned char* __restrict__ out_mask  // 0 = inside, 1 = outside
+){
+    // grid-stride loop for arbitrary N_mp
+    for (int idx = blockDim.x * blockIdx.x + threadIdx.x;
+         idx < N_mp;
+         idx += blockDim.x * gridDim.x)
+    {
+        const double x = x_mp[idx];
+        const double y = y_mp[idx];
+
+        // Elliptical early-inclusion test (same as original)
+        int inside = (((x/cx)*(x/cx) + (y/cy)*(y/cy)) <= 1.0) ? 1 : 0;
+
+        if (!inside) {
+            inside = 1;
+            int ii = 0;
+            while (inside == 1 && ii < N_edg) {
+                const double vx0 = Vx[ii];
+                const double vy0 = Vy[ii];
+                const double vx1 = Vx[ii+1];
+                const double vy1 = Vy[ii+1];
+
+                // Cross product > 0 means point is left of edge (for CCW polygon)
+                const double cross =
+                    ( (y - vy0) * (vx1 - vx0) ) - ( (x - vx0) * (vy1 - vy0) );
+                inside = (cross > 0.0) ? 1 : 0;
+                ++ii;
+            }
+        }
+
+        out_mask[idx] = (unsigned char)(!inside); // 1 = outside, 0 = inside
+    }
+}
+''';
+
+_is_outside_convex_kernel = cp.RawKernel(
+    _is_outside_convex_src, "is_outside_convex_kernel"
+)
+
+@profile
+def is_outside_convex_gpu(x_mp, y_mp, Vx, Vy, cx, cy, N_edg=None, *,
+                          threads_per_block=256, stream=None):
+    """
+    GPU version of your is_outside_convex.
+    Parameters
+    ----------
+    x_mp, y_mp : array_like (N,), float64
+        Query point coordinates.
+    Vx, Vy     : array_like (M,), float64
+        Polygon vertices; must have length N_edg+1 with last vertex==first.
+    cx, cy     : float
+        Ellipse radii used for the early-inclusion test.
+    N_edg      : int, optional
+        Number of edges (defaults to len(Vx)-1).
+    Returns
+    -------
+    out : cupy.ndarray (N,), bool
+        True for points outside; False for inside.
+    """
+    # Move data to device in expected dtypes
+    # x_d  = cp.asarray(x_mp, dtype=cp.float64)
+    # y_d  = cp.asarray(y_mp, dtype=cp.float64)
+    # Vx_d = cp.asarray(Vx,   dtype=cp.float64)
+    # Vy_d = cp.asarray(Vy,   dtype=cp.float64)
+    x_d = x_mp
+    y_d = y_mp
+    Vx_d = Vx
+    Vy_d = Vy
+
+    if N_edg is None:
+        N_edg = int(Vx_d.size) - 1
+    else:
+        N_edg = int(N_edg)
+
+    if Vx_d.size != Vy_d.size:
+        raise ValueError("Vx and Vy must have the same length.")
+    if Vx_d.size < 2 or N_edg + 1 > Vx_d.size:
+        raise ValueError("Vx/Vy must have at least N_edg+1 vertices (with last==first).")
+
+    N_mp = int(x_d.size)
+    if y_d.size != N_mp:
+        raise ValueError("x_mp and y_mp must have the same length.")
+
+    out_u8 = cp.empty(N_mp, dtype=cp.uint8)
+
+    blocks = (N_mp + threads_per_block - 1) // threads_per_block
+    # a modest cap to avoid excessive empty blocks on tiny inputs
+    blocks = max(1, min(blocks, 65535))
+
+    args = (
+        x_d, y_d, np.int32(N_mp),
+        Vx_d, Vy_d, np.int32(N_edg),
+        np.float64(cx), np.float64(cy),
+        out_u8,
+    )
+
+    if stream is None:
+        _is_outside_convex_kernel((blocks,), (threads_per_block,), args)
+    else:
+        with stream:
+            _is_outside_convex_kernel((blocks,), (threads_per_block,), args, stream=stream)
+
+    return out_u8.view(cp.bool_)  # boolean mask: True = outside, False = inside
+
 
 
 class PyECLOUD_ChamberException(ValueError):
@@ -161,10 +283,19 @@ class polyg_cham_geom_object(object):
             self.cythonisoutside = gipc.is_outside_nonconvex
             print('No assumption on the convexity of the polygon')
 
+    @profile
     def is_outside(self, x_mp, y_mp):
-        return self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
-
-    #@profile
+        nar = lambda x: cp.asnumpy(x)
+        car = lambda x: cp.asarray(x)
+        ret = self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
+        x_mp_gpu = car(x_mp)
+        y_mp_gpu = car(y_mp)
+        Vx_gpu = car(self.Vx)
+        Vy_gpu = car(self.Vy)
+        ret_gpu = is_outside_convex_gpu(x_mp_gpu,y_mp_gpu,Vx_gpu,Vy_gpu,self.cx,self.cy,self.N_edg)
+        np.testing.assert_allclose(nar(ret_gpu),ret,atol=1e-7,rtol = 1e-4)
+        return ret
+    # @profile
     def impact_point_and_normal(self, x_in, y_in, z_in, x_out, y_out, z_out, resc_fac=0.99, flag_robust=True):
 
         N_impacts = len(x_in)
@@ -172,6 +303,30 @@ class polyg_cham_geom_object(object):
 
         x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(x_in, y_in, z_in, x_out, y_out, z_out,
                                                                                     self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+        # print(x_in, y_in, z_in, x_out, y_out, z_out,self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+        # print(x_int,y_int,z_int,Nx_int,Ny_int,i_found)
+        # print(self.N_edg)
+        #CUPY--------------------------
+        # cu_x_in = cp.array(x_in)
+        # cu_y_in = cp.array(y_in)
+        # cu_z_in = cp.array(z_in)
+        # cu_x_out = cp.array(x_out)
+        # cu_y_out = cp.array(y_out)
+        # cu_z_out = cp.array(z_out)
+        # cu_Vx = cp.array(self.Vx)
+        # cu_Vy = cp.array(self.Vy)
+        # cu_Nx = cp.array(self.Nx)
+        # cu_Ny = cp.array(self.Ny)
+        # cu_resc_fac = cp.array(resc_fac)
+        # cu_x_int, cu_y_int, cu_z_int, cu_Nx_int, cu_Ny_int, cu_i_found = gipcu.impact_point_and_normal(cu_x_in, cu_y_in, cu_z_in, cu_x_out, cu_y_out, cu_z_out,
+        #                                                                             cu_Vx, cu_Vy, cu_Nx, cu_Ny, cu_resc_fac)
+        # nar = lambda x: cp.asnumpy(x)
+        # np.testing.assert_allclose(nar(cu_x_int),x_int)
+        # np.testing.assert_allclose(nar(cu_y_int),y_int)
+        # np.testing.assert_allclose(nar(cu_z_int),z_int)
+        # np.testing.assert_allclose(nar(cu_Nx_int),Nx_int)
+        # np.testing.assert_allclose(nar(cu_Ny_int),Ny_int)
+        # np.testing.assert_allclose(nar(cu_i_found),i_found)
 
         mask_found = i_found >= 0
 
