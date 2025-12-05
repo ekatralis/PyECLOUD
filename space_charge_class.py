@@ -53,6 +53,7 @@
 import numpy as np
 from scipy.constants import epsilon_0
 from scipy.constants import e as qe
+import cupy as cp
 
 na = lambda x: np.array([x])
 
@@ -64,7 +65,7 @@ class space_charge:
                  f_telescope=None, target_grid=None, N_nodes_discard=None, N_min_Dh_main=None, Dh_U_eV=None):
 
         print('Start space charge init.')
-
+        self.flagGPU = False
         if PyPICmode == 'FiniteDifferences_ShortleyWeller':
             import PyPIC.FiniteDifferences_ShortleyWeller_SquareGrid as PIC_FDSW
             self.PyPICobj = PIC_FDSW.FiniteDifferences_ShortleyWeller_SquareGrid(chamb=chamb, Dh=Dh, sparse_solver=sparse_solver)
@@ -104,6 +105,16 @@ class space_charge:
                 self.PyPICobj = PIC_FFT_Open.FFT_OpenBoundary(x_aper=chamb.x_aper, y_aper=chamb.y_aper, Dh=Dh)
 
             #To be replaced by a property to make it general (from PyPIC modules not having xn, yn)
+            self.xn = None  # not implemented in this mode (for now)
+            self.yn = None  # not implemented in this mode (for now)
+        elif PyPICmode == 'CUDAShortleyWeller_WithTelescopicGrids':
+            sparse_solver_GPU = "cuDSS"
+            self.flagGPU = True
+            import PyPIC.CUDAFiniteDifferences_ShortleyWeller_SquareGrid as PIC_FDSW
+            PyPICmain = PIC_FDSW.FiniteDifferences_ShortleyWeller_SquareGrid(chamb=chamb, Dh=Dh, sparse_solver=sparse_solver_GPU)
+            import PyPIC.CUDAMultiGrid as PIC_MG
+            self.PyPICobj = PIC_MG.AddTelescopicGrids(pic_main=PyPICmain, f_telescope=f_telescope, target_grid=target_grid,
+                                                      N_nodes_discard=N_nodes_discard, N_min_Dh_main=N_min_Dh_main, sparse_solver=sparse_solver_GPU)
             self.xn = None  # not implemented in this mode (for now)
             self.yn = None  # not implemented in this mode (for now)
         else:
@@ -174,7 +185,10 @@ class space_charge:
     #@profile
     def recompute_spchg_efield(self, MP_e, flag_solve=True, flag_reset=True):
         # scatter
-        self.PyPICobj.scatter(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp], MP_e.nel_mp[0:MP_e.N_mp], charge=MP_e.charge, flag_add=not(flag_reset))
+        if not self.flagGPU:
+            self.PyPICobj.scatter(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp], MP_e.nel_mp[0:MP_e.N_mp], charge=MP_e.charge, flag_add=not(flag_reset))
+        else:
+            self.PyPICobj.scatter(cp.array(MP_e.x_mp[0:MP_e.N_mp]), cp.array(MP_e.y_mp[0:MP_e.N_mp]), cp.array(MP_e.nel_mp[0:MP_e.N_mp]), charge=cp.array(MP_e.charge), flag_add=not(flag_reset))
         # solve
         if flag_solve:
 
@@ -200,10 +214,16 @@ class space_charge:
 
     #@profile
     def compute_spchg_efield_from_rho(self, rho, flag_verbose=True):
+        if self.flagGPU:
+            rho = cp.array(rho)
         self.PyPICobj.solve(rho=rho, flag_verbose=flag_verbose)
 
     def get_sc_eletric_field(self, MP_e):
-        Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp])
+        if not self.flagGPU:
+            Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp])
+        else:
+            Ex_sc_n_GPU, Ey_sc_n_GPU = self.PyPICobj.gather(cp.array(MP_e.x_mp[0:MP_e.N_mp]), cp.array(MP_e.y_mp[0:MP_e.N_mp]))
+            Ex_sc_n = Ex_sc_n_GPU.get(); Ey_sc_n = Ey_sc_n_GPU.get()
         return Ex_sc_n, Ey_sc_n
 
     def get_potential_electric_energy(self):

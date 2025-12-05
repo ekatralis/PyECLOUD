@@ -59,6 +59,7 @@ from scipy.constants import c
 
 from . import myloadmat_to_obj as mlm
 from . import buildup_simulation as bsim
+import cupy as cp
 
 
 class Empty(object):
@@ -68,12 +69,13 @@ class Empty(object):
 class DummyBeamTim(object):
     """Dummy beam-timing class to interface with buildup simulation"""
 
-    def __init__(self, PyPIC_state):
+    def __init__(self, PyPIC_state, flagGPU: bool = False):
         self.PyPIC_state = PyPIC_state
 
         self.b_spac = 0.0
         self.pass_numb = 0
         self.N_pass_tot = 1
+        self.flagGPU = flagGPU
 
     def get_beam_eletric_field(self, MP_e):
         if MP_e.N_mp > 0:
@@ -82,9 +84,16 @@ class DummyBeamTim(object):
                 Ey_n_beam = 0.0 * MP_e.y_mp[0 : MP_e.N_mp]
             else:
                 # compute beam electric field
-                Ex_n_beam, Ey_n_beam = self.PyPIC_state.gather(
-                    MP_e.x_mp[0 : MP_e.N_mp], MP_e.y_mp[0 : MP_e.N_mp]
-                )
+                if not self.flagGPU:
+                    Ex_n_beam, Ey_n_beam = self.PyPIC_state.gather(
+                        MP_e.x_mp[0 : MP_e.N_mp], MP_e.y_mp[0 : MP_e.N_mp]
+                    )
+                else:
+                    Ex_n_beam_GPU, Ey_n_beam_GPU = self.PyPIC_state.gather(
+                        cp.array(MP_e.x_mp[0 : MP_e.N_mp]), cp.array(MP_e.y_mp[0 : MP_e.N_mp])
+                    )
+                    Ex_n_beam = Ex_n_beam_GPU.get(); Ey_n_beam = Ey_n_beam_GPU.get()
+
         else:
             Ex_n_beam = 0.0
             Ey_n_beam = 0.0
@@ -370,6 +379,7 @@ class Ecloud(object):
             self.finalize_and_reinitialize = self._finalize_and_reinitialize
 
         self.spacech_ele = self.cloudsim.spacech_ele  # For backwards compatibility
+        self.flagGPU = self.cloudsim.spacech_ele.flagGPU
 
         self.kick_mode_for_beam_field = kick_mode_for_beam_field
         self.beam_monitor = beam_monitor
@@ -564,16 +574,24 @@ class Ecloud(object):
             else:
 
                 # beam field
-                self.beam_PyPIC_state.scatter(
-                    x_mp=slic.x[ix] + self.x_beam_offset,
-                    y_mp=slic.y[ix] + self.y_beam_offset,
-                    nel_mp=slic.x[ix] * 0.0 + slic.particlenumber_per_mp / dz,
-                    charge=slic.charge,
-                )
-                self.cloudsim.spacech_ele.PyPICobj.solve_states([self.beam_PyPIC_state])
-
+                if not self.flagGPU:
+                    self.beam_PyPIC_state.scatter(
+                        x_mp=slic.x[ix] + self.x_beam_offset,
+                        y_mp=slic.y[ix] + self.y_beam_offset,
+                        nel_mp=slic.x[ix] * 0.0 + slic.particlenumber_per_mp / dz,
+                        charge=slic.charge,
+                    )
+                    self.cloudsim.spacech_ele.PyPICobj.solve_states([self.beam_PyPIC_state])
+                else:
+                    self.beam_PyPIC_state.scatter(
+                        x_mp=cp.array(slic.x[ix] + self.x_beam_offset),
+                        y_mp=cp.array(slic.y[ix] + self.y_beam_offset),
+                        nel_mp=cp.array(slic.x[ix] * 0.0 + slic.particlenumber_per_mp / dz),
+                        charge=cp.array(slic.charge),
+                    )
+                    self.cloudsim.spacech_ele.PyPICobj.solve_states([self.beam_PyPIC_state])
                 # build dummy beamtim object
-                dummybeamtim = DummyBeamTim(self.beam_PyPIC_state)
+                dummybeamtim = DummyBeamTim(self.beam_PyPIC_state, flagGPU=self.flagGPU)
 
                 dummybeamtim.lam_t_curr = np.mean(
                     slic.particlenumber_per_mp / dz
