@@ -363,7 +363,7 @@ def boris_c_gpu_cleanedup(
     charge, mass,
     Bx_n_custom=None, By_n_custom=None, Bz_n_custom=None,
     custom_B=False,
-    threads_per_block=256
+    threads_per_block=512
 ):
     """
     CuPy accelerated Boris pusher with multipoles.
