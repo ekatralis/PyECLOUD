@@ -58,7 +58,7 @@ import numpy as np
 import numpy.random as random
 
 from . import geom_impact_poly_cython as gipc
-# from . import geom_impact_poly_cupy as gipcu
+from . import geom_impact_poly_cupy as gipcu
 # import cupy as cp
 from line_profiler import profile
 
@@ -303,6 +303,15 @@ class polyg_cham_geom_object(object):
 
         x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(x_in, y_in, z_in, x_out, y_out, z_out,
                                                                                     self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+        x_int2, y_int2, z_int2, Nx_int2, Ny_int2, i_found2 = gipcu.impact_point_and_normal(x_in, y_in, z_in, x_out, y_out, z_out,
+                                                                                    self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+        np.testing.assert_allclose(x_int, x_int2.get())
+        np.testing.assert_allclose(y_int, y_int2.get())
+        np.testing.assert_allclose(z_int, z_int2.get())
+        np.testing.assert_allclose(Nx_int, Nx_int2.get())
+        np.testing.assert_allclose(Ny_int, Ny_int2.get())
+        np.testing.assert_allclose(i_found, i_found2.get())
+
         # print(x_in, y_in, z_in, x_out, y_out, z_out,self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
         # print(x_int,y_int,z_int,Nx_int,Ny_int,i_found)
         # print(self.N_edg)

@@ -1,76 +1,201 @@
 import cupy as cp
+import numpy as np
 
-def impact_point_and_normal(x_in, y_in, z_in,
-                                  x_out, y_out, z_out,
-                                  Vx, Vy, Nx, Ny, 
-                                  resc_fac):
-    N_impacts = x_in.shape[0]
 
-    # Output arrays
-    x_int = cp.zeros(N_impacts, dtype=cp.float64)
-    y_int = cp.zeros(N_impacts, dtype=cp.float64)
-    z_int = cp.zeros(N_impacts, dtype=cp.float64)
-    Nx_int = cp.zeros(N_impacts, dtype=cp.float64)
-    Ny_int = cp.zeros(N_impacts, dtype=cp.float64)
-    i_found = cp.full(N_impacts, -1, dtype=cp.int32)
+_IMPACT_POINT_AND_NORMAL_SRC = r"""
+extern "C" __global__
+void impact_point_and_normal_kernel(
+    const double* __restrict__ x_in,
+    const double* __restrict__ y_in,
+    const double* __restrict__ x_out,
+    const double* __restrict__ y_out,
+    const double* __restrict__ Vx,
+    const double* __restrict__ Vy,
+    const double* __restrict__ Nx,
+    const double* __restrict__ Ny,
+    const int N_impacts,
+    const int N_edg,
+    const double resc_fac,
+    double* __restrict__ x_int,
+    double* __restrict__ y_int,
+    double* __restrict__ z_int,
+    double* __restrict__ Nx_int,
+    double* __restrict__ Ny_int,
+    int* __restrict__ i_found
+){
+    for (int i_imp = blockDim.x * blockIdx.x + threadIdx.x;
+         i_imp < N_impacts;
+         i_imp += blockDim.x * gridDim.x)
+    {
+        double t_min_curr = 1.0;
+        int i_found_curr = -1;
 
-    # Segment vectors for each edge
-    Vx0 = Vx[:-1]
-    Vx1 = Vx[1:]
-    Vy0 = Vy[:-1]
-    Vy1 = Vy[1:]
-    # Nx_arr = Nx[:-1]  # assume per-edge normals (length N_edg)
-    # Ny_arr = Ny[:-1]
-    Nx_arr = Nx
-    Ny_arr = Ny
-    # print(Vx.shape, Vy.shape, Nx.shape, Ny.shape, Vx0.shape, Vy0.shape, Vx1.shape, Vy1.shape)
+        const double x_in_curr = x_in[i_imp];
+        const double y_in_curr = y_in[i_imp];
+        const double x_out_curr = x_out[i_imp];
+        const double y_out_curr = y_out[i_imp];
 
-    # Broadcast inputs for all (impacts x edges)
-    xi = x_in[:, None]
-    yi = y_in[:, None]
-    xo = x_out[:, None]
-    yo = y_out[:, None]
-    dx = xo - xi
-    dy = yo - yi
+        for (int ii = 0; ii < N_edg; ++ii) {
+            const double den =
+                (y_out_curr - y_in_curr) * (Vx[ii + 1] - Vx[ii]) +
+                (x_in_curr - x_out_curr) * (Vy[ii + 1] - Vy[ii]);
 
-    den = (dy * (Vx1 - Vx0) + dx * (Vy1 - Vy0))
+            double t_border;
+            if (den == 0.0) {
+                t_border = -2.0;
+            } else {
+                t_border =
+                    ((y_out_curr - y_in_curr) * (x_in_curr - Vx[ii]) +
+                     (x_in_curr - x_out_curr) * (y_in_curr - Vy[ii])) / den;
+            }
 
-    # Avoid division by zero (parallel case)
-    den_zero = den == 0.0
-    t_border = cp.where(den_zero, -2.0,
-                        ((dy * (xi - Vx0)) + dx * (yi - Vy0)) / den)
+            if (t_border >= 0.0 && t_border <= 1.0) {
+                const double t_denom =
+                    Nx[ii] * (x_out_curr - x_in_curr) +
+                    Ny[ii] * (y_out_curr - y_in_curr);
 
-    # Valid intersections
-    valid_border = (t_border >= 0.0) & (t_border <= 1.0)
+                if (t_denom != 0.0) {
+                    const double t_ii =
+                        (Nx[ii] * (Vx[ii] - x_in_curr) +
+                         Ny[ii] * (Vy[ii] - y_in_curr)) / t_denom;
 
-    # Compute t_ii only for valid borders
-    # print(Nx_arr.shape)
-    num = Nx_arr * (Vx0 - xi) + Ny_arr * (Vy0 - yi)
-    denom = Nx_arr * dx + Ny_arr * dy
-    
-    t_ii = cp.where(denom != 0.0, num / denom, cp.inf)
+                    if (t_ii >= 0.0 && t_ii < t_min_curr) {
+                        t_min_curr = t_ii;
+                        i_found_curr = ii;
+                    }
+                }
+            }
+        }
 
-    t_ii = cp.where(valid_border, t_ii, cp.inf)
+        t_min_curr = resc_fac * t_min_curr;
+        x_int[i_imp] = t_min_curr * x_out_curr + (1.0 - t_min_curr) * x_in_curr;
+        y_int[i_imp] = t_min_curr * y_out_curr + (1.0 - t_min_curr) * y_in_curr;
+        z_int[i_imp] = 0.0;
 
-    # Find min t_ii and corresponding edge
-    t_min_curr = t_ii.min(axis=1)
-    i_found_curr = t_ii.argmin(axis=1)
+        if (i_found_curr >= 0) {
+            Nx_int[i_imp] = Nx[i_found_curr];
+            Ny_int[i_imp] = Ny[i_found_curr];
+            i_found[i_imp] = i_found_curr;
+        } else {
+            Nx_int[i_imp] = 0.0;
+            Ny_int[i_imp] = 0.0;
+            i_found[i_imp] = -1;
+        }
+    }
+}
+"""
 
-    # Compute intersection point
-    t_scaled = resc_fac * t_min_curr
-    x_int = t_scaled * x_out + (1.0 - t_scaled) * x_in
-    y_int = t_scaled * y_out + (1.0 - t_scaled) * y_in
-    z_int = cp.zeros_like(x_int)
 
-    # Apply normals where valid
-    valid_mask = cp.isfinite(t_min_curr)
-    Nx_int[valid_mask] = Nx[i_found_curr[valid_mask]]
-    Ny_int[valid_mask] = Ny[i_found_curr[valid_mask]]
-    i_found[valid_mask] = i_found_curr[valid_mask]
+_impact_point_and_normal_kernel = cp.RawKernel(
+    _IMPACT_POINT_AND_NORMAL_SRC,
+    "impact_point_and_normal_kernel",
+    options=("--std=c++11",),
+    backend="nvrtc",
+)
+
+
+def _as_f64_device_array(arr, name):
+    out = cp.asarray(arr, dtype=cp.float64)
+    if out.ndim != 1:
+        raise ValueError(f"{name} must be a 1D array.")
+    return out
+
+
+def impact_point_and_normal(
+    x_in,
+    y_in,
+    z_in,
+    x_out,
+    y_out,
+    z_out,
+    Vx,
+    Vy,
+    Nx,
+    Ny,
+    N_edg=None,
+    resc_fac=0.99,
+    *,
+    threads_per_block=256,
+    stream=None,
+):
+    x_in = _as_f64_device_array(x_in, "x_in")
+    y_in = _as_f64_device_array(y_in, "y_in")
+    z_in = _as_f64_device_array(z_in, "z_in")
+    x_out = _as_f64_device_array(x_out, "x_out")
+    y_out = _as_f64_device_array(y_out, "y_out")
+    z_out = _as_f64_device_array(z_out, "z_out")
+    Vx = _as_f64_device_array(Vx, "Vx")
+    Vy = _as_f64_device_array(Vy, "Vy")
+    Nx = _as_f64_device_array(Nx, "Nx")
+    Ny = _as_f64_device_array(Ny, "Ny")
+
+    n_impacts = int(x_in.size)
+    if any(arr.size != n_impacts for arr in (y_in, z_in, x_out, y_out, z_out)):
+        raise ValueError("Input trajectory arrays must all have the same length.")
+
+    if Vx.size != Vy.size:
+        raise ValueError("Vx and Vy must have the same length.")
+    if Nx.size != Ny.size:
+        raise ValueError("Nx and Ny must have the same length.")
+
+    if N_edg is None:
+        N_edg = int(Nx.size)
+    else:
+        N_edg = int(N_edg)
+
+    if N_edg < 0:
+        raise ValueError("N_edg must be non-negative.")
+    if Vx.size < N_edg + 1 or Vy.size < N_edg + 1:
+        raise ValueError("Vx and Vy must contain at least N_edg + 1 entries.")
+    if Nx.size < N_edg or Ny.size < N_edg:
+        raise ValueError("Nx and Ny must contain at least N_edg entries.")
+
+    x_int = cp.zeros(n_impacts, dtype=cp.float64)
+    y_int = cp.zeros(n_impacts, dtype=cp.float64)
+    z_int = cp.zeros(n_impacts, dtype=cp.float64)
+    Nx_int = cp.zeros(n_impacts, dtype=cp.float64)
+    Ny_int = cp.zeros(n_impacts, dtype=cp.float64)
+    i_found = cp.full(n_impacts, -1, dtype=cp.int32)
+
+    if n_impacts == 0:
+        return x_int, y_int, z_int, Nx_int, Ny_int, i_found
+
+    blocks = (n_impacts + threads_per_block - 1) // threads_per_block
+    blocks = max(1, min(blocks, 65535))
+
+    args = (
+        x_in,
+        y_in,
+        x_out,
+        y_out,
+        Vx,
+        Vy,
+        Nx,
+        Ny,
+        np.int32(n_impacts),
+        np.int32(N_edg),
+        np.float64(resc_fac),
+        x_int,
+        y_int,
+        z_int,
+        Nx_int,
+        Ny_int,
+        i_found,
+    )
+
+    if stream is None:
+        _impact_point_and_normal_kernel((blocks,), (threads_per_block,), args)
+    else:
+        with stream:
+            _impact_point_and_normal_kernel(
+                (blocks,),
+                (threads_per_block,),
+                args,
+                stream=stream,
+            )
 
     return x_int, y_int, z_int, Nx_int, Ny_int, i_found
 
-import cupy as cp
 
 def is_outside_convex(x_mp, y_mp, Vx, Vy, cx, cy):
     """
@@ -81,35 +206,23 @@ def is_outside_convex(x_mp, y_mp, Vx, Vy, cx, cy):
     Vx = cp.asarray(Vx)
     Vy = cp.asarray(Vy)
 
-    N_mp = x_mp.shape[0]
-
-    # First, check ellipse containment
     is_inside_ellipse = (x_mp / cx) ** 2 + (y_mp / cy) ** 2 <= 1.0
 
-    # Create edge vectors
     Vx0 = Vx[:-1]
     Vy0 = Vy[:-1]
     Vx1 = Vx[1:]
     Vy1 = Vy[1:]
 
-    # Compute edge vectors
     edge_dx = Vx1 - Vx0
     edge_dy = Vy1 - Vy0
 
-    # Broadcast points (N_mp, 1) and vertices (1, N_edg)
     px = x_mp[:, None]
     py = y_mp[:, None]
 
     dx = px - Vx0
     dy = py - Vy0
 
-    # Compute cross product for each edge test (half-plane test)
     cross = dy * edge_dx - dx * edge_dy
-
-    # Inside polygon if all cross products > 0 (i.e., left of all edges)
     is_inside_poly = cp.all(cross > 0.0, axis=1)
 
-    # Apply logic: inside polygon OR inside ellipse ⇒ not outside
-    is_outside = ~(is_inside_poly | is_inside_ellipse)
-
-    return is_outside
+    return ~(is_inside_poly | is_inside_ellipse)
