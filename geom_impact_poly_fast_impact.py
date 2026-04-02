@@ -285,16 +285,16 @@ class polyg_cham_geom_object(object):
 
     @profile
     def is_outside(self, x_mp, y_mp):
-        nar = lambda x: cp.asnumpy(x)
-        car = lambda x: cp.asarray(x)
-        ret = self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
-        x_mp_gpu = car(x_mp)
-        y_mp_gpu = car(y_mp)
-        Vx_gpu = car(self.Vx)
-        Vy_gpu = car(self.Vy)
-        ret_gpu = is_outside_convex_gpu(x_mp_gpu,y_mp_gpu,Vx_gpu,Vy_gpu,self.cx,self.cy,self.N_edg)
-        # np.testing.assert_allclose(nar(ret_gpu),ret,atol=1e-7,rtol = 1e-4)
-        return ret
+        if isinstance(x_mp, cp.ndarray) or isinstance(y_mp, cp.ndarray):
+            x_mp_gpu = cp.asarray(x_mp)
+            y_mp_gpu = cp.asarray(y_mp)
+            Vx_gpu = cp.asarray(self.Vx)
+            Vy_gpu = cp.asarray(self.Vy)
+            return is_outside_convex_gpu(
+                x_mp_gpu, y_mp_gpu, Vx_gpu, Vy_gpu,
+                self.cx, self.cy, self.N_edg)
+
+        return self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
     # @profile
     def impact_point_and_normal(self, x_in, y_in, z_in, x_out, y_out, z_out, resc_fac=0.99, flag_robust=True):
 
@@ -631,5 +631,4 @@ class polyg_cham_photoemission(polyg_cham_geom_object):
             x_new_mp[flag_outside], y_new_mp[flag_outside] = self._get_photoelectron_position_segment(n_mp_outside, x_new_mp[flag_outside], y_new_mp[flag_outside], i_seg)
 
         return x_new_mp, y_new_mp
-
 

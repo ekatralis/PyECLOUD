@@ -57,12 +57,6 @@ from scipy.constants import e as qe
 from line_profiler import profile
 import cupy as cp
 
-
-def _to_cpu(array):
-    if isinstance(array, cp.ndarray):
-        return cp.asnumpy(array)
-    return array
-
 class impact_management(object):
     def __init__(
             self, chamb, sey_mod,
@@ -179,15 +173,7 @@ class impact_management(object):
         
     @profile
     def backtrack_and_second_emiss(self, old_pos, MP_e, tt_curr=None):
-
-        restore_gpu_residency = getattr(MP_e, "use_gpu", False)
-        if restore_gpu_residency:
-            MP_e.move_to_cpu()
-            old_pos = type(old_pos)(
-                _to_cpu(old_pos.x_mp),
-                _to_cpu(old_pos.y_mp),
-                _to_cpu(old_pos.z_mp),
-            )
+        use_gpu = getattr(MP_e, "use_gpu", False)
 
         self.Nel_impact_last_step = 0.
         self.Nel_emit_last_step = 0.
@@ -225,26 +211,42 @@ class impact_management(object):
 
             # impact management
 
-            flag_impact = np.zeros_like(x_mp, dtype=bool)
-            self.flag_impact = flag_impact
+            if use_gpu:
+                flag_impact = cp.zeros_like(x_mp, dtype=cp.bool_)
+                flag_impact[:N_mp_old] = chamb.is_outside(
+                    x_mp[0:N_mp_old], y_mp[0:N_mp_old])
+                idx_gpu = cp.flatnonzero(flag_impact[:N_mp_old])
+                idx = cp.asnumpy(idx_gpu)
+                Nimpact = int(idx_gpu.size)
+            else:
+                flag_impact = np.zeros_like(x_mp, dtype=bool)
+                flag_impact[:N_mp_old] = chamb.is_outside(
+                    x_mp[0:N_mp_old], y_mp[0:N_mp_old])
+                idx = np.flatnonzero(flag_impact)
+                idx_gpu = idx
+                Nimpact = int(np.sum(flag_impact))
 
-            # detect impact
-            flag_impact[:N_mp_old] = chamb.is_outside(
-                x_mp[0:N_mp_old], y_mp[0:N_mp_old])
-            
-            idx = np.flatnonzero(flag_impact)
-            Nimpact = int(np.sum(flag_impact))
+            self.flag_impact = flag_impact
 
             if Nimpact > 0:
 
                 # load segment endpoints
-                x_in = x_mp_old[idx]
-                y_in = y_mp_old[idx]
-                z_in = z_mp_old[idx]
+                if use_gpu:
+                    x_in = cp.asnumpy(x_mp_old[idx_gpu])
+                    y_in = cp.asnumpy(y_mp_old[idx_gpu])
+                    z_in = cp.asnumpy(z_mp_old[idx_gpu])
 
-                x_out = x_mp[idx]
-                y_out = y_mp[idx]
-                z_out = z_mp[idx]
+                    x_out = cp.asnumpy(x_mp[idx_gpu])
+                    y_out = cp.asnumpy(y_mp[idx_gpu])
+                    z_out = cp.asnumpy(z_mp[idx_gpu])
+                else:
+                    x_in = x_mp_old[idx]
+                    y_in = y_mp_old[idx]
+                    z_in = z_mp_old[idx]
+
+                    x_out = x_mp[idx]
+                    y_out = y_mp[idx]
+                    z_out = z_mp[idx]
 
                 # backtracking and surface normal generation
                 [x_impact, y_impact, z_impact, Norm_x, Norm_y, i_found] =\
@@ -252,20 +254,34 @@ class impact_management(object):
                         x_in, y_in, z_in, x_out, y_out, z_out)
 
                 # load velocities and charges
-                vx_impact = vx_mp[idx]
-                vy_impact = vy_mp[idx]
-                vz_impact = vz_mp[idx]
-                nel_impact = nel_mp[idx]
+                if use_gpu:
+                    vx_impact = cp.asnumpy(vx_mp[idx_gpu])
+                    vy_impact = cp.asnumpy(vy_mp[idx_gpu])
+                    vz_impact = cp.asnumpy(vz_mp[idx_gpu])
+                    nel_impact = cp.asnumpy(nel_mp[idx_gpu])
+                else:
+                    vx_impact = vx_mp[idx]
+                    vy_impact = vy_mp[idx]
+                    vz_impact = vz_mp[idx]
+                    nel_impact = nel_mp[idx]
 
                 # add to lifetime histogram
                 if self.flag_lifetime_hist:
-                    lifetime_impact = tt_curr - MP_e.t_last_impact[idx]
-                    if sum(MP_e.t_last_impact[idx] > 0) > 0:
-                        histf.compute_hist(lifetime_impact[MP_e.t_last_impact[idx] > 0],
-                                           nel_impact[MP_e.t_last_impact[idx] > 0], 
+                    if use_gpu:
+                        t_last_impact = cp.asnumpy(MP_e.t_last_impact[idx_gpu])
+                    else:
+                        t_last_impact = MP_e.t_last_impact[idx]
+
+                    lifetime_impact = tt_curr - t_last_impact
+                    if sum(t_last_impact > 0) > 0:
+                        histf.compute_hist(lifetime_impact[t_last_impact > 0],
+                                           nel_impact[t_last_impact > 0], 
                                            0., Dt_lifetime_hist, self.lifetime_hist_line)
 
-                    MP_e.t_last_impact[idx] = tt_curr
+                    if use_gpu:
+                        MP_e.t_last_impact[idx_gpu] = tt_curr
+                    else:
+                        MP_e.t_last_impact[idx] = tt_curr
 
                 # compute impact velocities, energy and angle
                 v_impact_mod = np.sqrt(
@@ -330,13 +346,22 @@ class impact_management(object):
                 self.Nel_emit_last_step = np.sum(nel_emit_tot_events)
 
                 # Replace old MPs
-                x_mp[idx] = x_replace
-                y_mp[idx] = y_replace
-                z_mp[idx] = z_replace
-                vx_mp[idx] = vx_replace
-                vy_mp[idx] = vy_replace
-                vz_mp[idx] = vz_replace
-                nel_mp[idx] = nel_replace
+                if use_gpu:
+                    x_mp[idx_gpu] = cp.asarray(x_replace)
+                    y_mp[idx_gpu] = cp.asarray(y_replace)
+                    z_mp[idx_gpu] = cp.asarray(z_replace)
+                    vx_mp[idx_gpu] = cp.asarray(vx_replace)
+                    vy_mp[idx_gpu] = cp.asarray(vy_replace)
+                    vz_mp[idx_gpu] = cp.asarray(vz_replace)
+                    nel_mp[idx_gpu] = cp.asarray(nel_replace)
+                else:
+                    x_mp[idx] = x_replace
+                    y_mp[idx] = y_replace
+                    z_mp[idx] = z_replace
+                    vx_mp[idx] = vx_replace
+                    vy_mp[idx] = vy_replace
+                    vz_mp[idx] = vz_replace
+                    nel_mp[idx] = nel_replace
 
                 # subtract replaced macroparticles
                 v_replace_mod = np.sqrt(
@@ -356,8 +381,20 @@ class impact_management(object):
                 # New macroparticles
                 N_new_MPs = len(nel_new_MPs)
                 if N_new_MPs > 0:
-                    MP_e.add_new_MPs(N_new_MPs, nel_new_MPs, x_new_MPs, y_new_MPs, z_new_MPs,
-                                     vx_new_MPs, vy_new_MPs, vz_new_MPs, tt_curr)
+                    if use_gpu:
+                        MP_e.add_new_MPs(
+                            N_new_MPs,
+                            cp.asarray(nel_new_MPs),
+                            cp.asarray(x_new_MPs),
+                            cp.asarray(y_new_MPs),
+                            cp.asarray(z_new_MPs),
+                            cp.asarray(vx_new_MPs),
+                            cp.asarray(vy_new_MPs),
+                            cp.asarray(vz_new_MPs),
+                            tt_curr)
+                    else:
+                        MP_e.add_new_MPs(N_new_MPs, nel_new_MPs, x_new_MPs, y_new_MPs, z_new_MPs,
+                                         vx_new_MPs, vy_new_MPs, vz_new_MPs, tt_curr)
 
                     # subtract new macroparticles
                     v_new_MPs_mod = np.sqrt(
@@ -375,9 +412,6 @@ class impact_management(object):
 
                     self.En_emit_last_step_eV += np.sum(
                         E_new_MPs_eV * nel_new_MPs)
-
-        if restore_gpu_residency:
-            MP_e.move_to_gpu()
 
         return MP_e
 
