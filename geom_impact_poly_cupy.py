@@ -79,7 +79,6 @@ void impact_point_and_normal_kernel(
         } else {
             Nx_int[i_imp] = 0.0;
             Ny_int[i_imp] = 0.0;
-            i_found[i_imp] = -1;
         }
     }
 }
@@ -89,7 +88,7 @@ void impact_point_and_normal_kernel(
 _impact_point_and_normal_kernel = cp.RawKernel(
     _IMPACT_POINT_AND_NORMAL_SRC,
     "impact_point_and_normal_kernel",
-    options=("--std=c++11",),
+    options=("--std=c++11"), #, "--fmad=false" for more accurate floating-point results, but may reduce performance
     backend="nvrtc",
 )
 
@@ -155,7 +154,7 @@ def impact_point_and_normal(
     z_int = cp.zeros(n_impacts, dtype=cp.float64)
     Nx_int = cp.zeros(n_impacts, dtype=cp.float64)
     Ny_int = cp.zeros(n_impacts, dtype=cp.float64)
-    i_found = cp.full(n_impacts, -1, dtype=cp.int32)
+    i_found = cp.zeros(n_impacts, dtype=cp.int32)
 
     if n_impacts == 0:
         return x_int, y_int, z_int, Nx_int, Ny_int, i_found
