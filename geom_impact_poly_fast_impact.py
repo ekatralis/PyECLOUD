@@ -177,7 +177,8 @@ def is_outside_convex_gpu(x_mp, y_mp, Vx, Vy, cx, cy, N_edg=None, *,
     else:
         with stream:
             _is_outside_convex_kernel((blocks,), (threads_per_block,), args, stream=stream)
-
+            
+    # cp.cuda.get_current_stream().synchronize()
     return out_u8.view(cp.bool_)  # boolean mask: True = outside, False = inside
 
 

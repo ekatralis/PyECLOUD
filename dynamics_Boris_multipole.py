@@ -406,7 +406,7 @@ def boris_c_gpu_cleanedup(
 
     # Launch
     blocks = (N_mp + threads_per_block - 1) // threads_per_block
-    ker = cp.RawKernel(_F64_SRC,"boris_kernel_f64", options=('--std=c++11',), backend='nvrtc')
+    ker = cp.RawKernel(_F64_SRC,"boris_kernel_f64", options=('--std=c++11','-O3','--use_fast_math','--gpu-architecture=sm_70',), backend='nvcc')
     ker((blocks,), (threads_per_block,),
         (int(N_sub_steps), int(N_multipoles), half_qm_dt, Dtt,
          B_field, B_skew,
@@ -417,7 +417,8 @@ def boris_c_gpu_cleanedup(
          int(bool(custom_B)), int(N_mp))
     )
     # Optional: cp.cuda.runtime.deviceSynchronize()
-
+    # cp.cuda.get_current_stream().synchronize()
+    
     return xn1, yn1, zn1, vxn1, vyn1, vzn1
 
 class pusher_Boris_multipole():
@@ -522,10 +523,11 @@ class pusher_Boris_multipole():
                          xn1, yn1, zn1, vxn1, vyn1, vzn1,
                          Ex_n, Ey_n, Bx_arr, By_arr, Bz_arr, custom_B, MP_e.charge, MP_e.mass)
 
-
+            # cp.cuda.get_current_stream().synchronize()  
             xxn1, xyn1, xzn1, xvxn1, xvyn1, xvzn1 = boris_c_gpu_cleanedup(N_sub_steps, Dt_substep, cu_Bfield, cu_Bfieldskew,
                          cu_xn1, cu_yn1, cu_zn1, cu_vxn1, cu_vyn1, cu_vzn1,
-                         cu_Ex_n, cu_Ey_n, MP_e.charge, MP_e.mass, cu_Bx_arr, cu_By_arr, cu_Bz_arr, bool(custom_B))
+                         cu_Ex_n, cu_Ey_n, MP_e.charge, MP_e.mass, cu_Bx_arr, cu_By_arr, cu_Bz_arr, bool(custom_B),threads_per_block = 512)
+            # cp.cuda.get_current_stream().synchronize()
 
             np.testing.assert_allclose(nar(xxn1),xn1,atol=1e-7,rtol = 1e-4)
             np.testing.assert_allclose(nar(xyn1),yn1,atol=1e-7,rtol = 1e-4)
