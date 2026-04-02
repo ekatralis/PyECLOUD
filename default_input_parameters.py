@@ -99,6 +99,7 @@ parameters_dict = {
             'Dh_electric_energy': None,
             'sparse_solver': 'scipy_slu',
             'PyPICmode'    : 'FiniteDifferences_ShortleyWeller',
+            'use_gpu': True,
             'flag_reinterp_fields_at_substeps': False,
 
             # Multigrid parameters

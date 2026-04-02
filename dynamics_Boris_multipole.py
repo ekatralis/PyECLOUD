@@ -423,7 +423,7 @@ def boris_c_gpu_cleanedup(
 class pusher_Boris_multipole():
 
     def __init__(self, Dt, N_sub_steps=1, B_multip=None, B_skew=None,
-        B0x=None, B0y=None, B0z=None):
+        B0x=None, B0y=None, B0z=None, use_gpu=False):
 
         self.N_sub_steps = N_sub_steps
         self.Dt = Dt
@@ -448,6 +448,10 @@ class pusher_Boris_multipole():
         self.B0x = B0x
         self.B0y = B0y
         self.B0z = B0z
+        self.use_gpu = use_gpu
+        self.array_backend = cp if use_gpu else np
+        self._B_field_gpu = None
+        self._B_field_skew_gpu = None
         print("Tracker: Boris multipole")
 
         print("N_subst_init=%d" % self.N_sub_steps)
@@ -463,10 +467,16 @@ class pusher_Boris_multipole():
         Bx_n=None, By_n=None, Bz_n=None,
         Dt_substep=None, N_sub_steps=None):
 
+        use_gpu = self.use_gpu or getattr(MP_e, "use_gpu", False)
+        # print(type(MP_e.N_mp))
+        if use_gpu and not getattr(MP_e, "use_gpu", False):
+            MP_e.move_to_gpu()
+
+        backend = cp if use_gpu else np
         custom_B = 0
-        Bx_arr = np.zeros(MP_e.N_mp)
-        By_arr = np.zeros(MP_e.N_mp)
-        Bz_arr = np.zeros(MP_e.N_mp)
+        Bx_arr = backend.zeros(MP_e.N_mp)
+        By_arr = backend.zeros(MP_e.N_mp)
+        Bz_arr = backend.zeros(MP_e.N_mp)
 
         if self.B0x is not None:
             Bx_arr += self.B0x
@@ -489,10 +499,6 @@ class pusher_Boris_multipole():
             custom_B = 1
 
         if MP_e.N_mp > 0:
-
-            nar = lambda x: cp.asnumpy(x)
-            car = lambda x: cp.asarray(x)
-
             xn1 = MP_e.x_mp[0:MP_e.N_mp]
             yn1 = MP_e.y_mp[0:MP_e.N_mp]
             zn1 = MP_e.z_mp[0:MP_e.N_mp]
@@ -500,39 +506,25 @@ class pusher_Boris_multipole():
             vyn1 = MP_e.vy_mp[0:MP_e.N_mp]
             vzn1 = MP_e.vz_mp[0:MP_e.N_mp]
 
-            cu_Bfield = car(self.B_field)
-            cu_Bfieldskew = car(self.B_field_skew)
-            cu_xn1 = car(xn1)
-            cu_yn1 = car(yn1)
-            cu_zn1 = car(zn1)
-            cu_vxn1 = car(vxn1)
-            cu_vyn1 = car(vyn1)
-            cu_vzn1 = car(vzn1)
-            cu_Ex_n = car(Ex_n)
-            cu_Ey_n = car(Ey_n)
-            cu_Bx_arr = car(Bx_arr)
-            cu_By_arr = car(By_arr)
-            cu_Bz_arr = car(Bz_arr)
-            # cu_customB = car(custom_B)
-
             if Ez_n != 0.:
                 raise ValueError('Oooops! Not implemented....')
 
-            boris_step_multipole(N_sub_steps, Dt_substep, self.B_field, self.B_field_skew,
-                         xn1, yn1, zn1, vxn1, vyn1, vzn1,
-                         Ex_n, Ey_n, Bx_arr, By_arr, Bz_arr, custom_B, MP_e.charge, MP_e.mass)
+            if use_gpu:
+                if self._B_field_gpu is None:
+                    self._B_field_gpu = cp.asarray(self.B_field)
+                    self._B_field_skew_gpu = cp.asarray(self.B_field_skew)
 
-
-            xxn1, xyn1, xzn1, xvxn1, xvyn1, xvzn1 = boris_c_gpu_cleanedup(N_sub_steps, Dt_substep, cu_Bfield, cu_Bfieldskew,
-                         cu_xn1, cu_yn1, cu_zn1, cu_vxn1, cu_vyn1, cu_vzn1,
-                         cu_Ex_n, cu_Ey_n, MP_e.charge, MP_e.mass, cu_Bx_arr, cu_By_arr, cu_Bz_arr, bool(custom_B))
-
-            np.testing.assert_allclose(nar(xxn1),xn1,atol=1e-7,rtol = 1e-4)
-            np.testing.assert_allclose(nar(xyn1),yn1,atol=1e-7,rtol = 1e-4)
-            np.testing.assert_allclose(nar(xzn1),zn1,atol=1e-7,rtol = 1e-4)
-            np.testing.assert_allclose(nar(xvxn1),vxn1,atol=1e-7,rtol = 1e-4)
-            np.testing.assert_allclose(nar(xvyn1),vyn1,atol=1e-7,rtol = 1e-4)
-            np.testing.assert_allclose(nar(xvzn1),vzn1,atol=1e-7,rtol = 1e-4)
-
-            cp._default_memory_pool.free_all_blocks()
+                boris_c_gpu(
+                    N_sub_steps, Dt_substep,
+                    self._B_field_gpu, self._B_field_skew_gpu,
+                    xn1, yn1, zn1,
+                    vxn1, vyn1, vzn1,
+                    cp.asarray(Ex_n), cp.asarray(Ey_n),
+                    MP_e.charge, MP_e.mass,
+                    cp.asarray(Bx_arr), cp.asarray(By_arr), cp.asarray(Bz_arr),
+                    bool(custom_B))
+            else:
+                boris_step_multipole(N_sub_steps, Dt_substep, self.B_field, self.B_field_skew,
+                             xn1, yn1, zn1, vxn1, vyn1, vzn1,
+                             Ex_n, Ey_n, Bx_arr, By_arr, Bz_arr, custom_B, MP_e.charge, MP_e.mass)
         return MP_e

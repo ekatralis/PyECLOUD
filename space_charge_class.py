@@ -62,10 +62,19 @@ class space_charge:
     #@profile
 
     def __init__(self, chamb, Dh, Dt_sc=None, PyPICmode='FiniteDifferences_ShortleyWeller' , sparse_solver='scipy_slu',
+                 use_gpu=False,
                  f_telescope=None, target_grid=None, N_nodes_discard=None, N_min_Dh_main=None, Dh_U_eV=None):
 
         print('Start space charge init.')
         self.flagGPU = False
+        self.array_backend = np
+        if use_gpu and PyPICmode == 'FiniteDifferences_ShortleyWeller':
+            PyPICmode = 'CUDAFiniteDifferences_ShortleyWeller'
+        elif use_gpu and PyPICmode == 'FiniteDifferences_Staircase':
+            PyPICmode = 'CUDAFiniteDifferences_Staircase'
+        elif use_gpu and PyPICmode == 'ShortleyWeller_WithTelescopicGrids':
+            PyPICmode = 'CUDAShortleyWeller_WithTelescopicGrids'
+
         if PyPICmode == 'FiniteDifferences_ShortleyWeller':
             import PyPIC.FiniteDifferences_ShortleyWeller_SquareGrid as PIC_FDSW
             self.PyPICobj = PIC_FDSW.FiniteDifferences_ShortleyWeller_SquareGrid(chamb=chamb, Dh=Dh, sparse_solver=sparse_solver)
@@ -117,8 +126,25 @@ class space_charge:
                                                       N_nodes_discard=N_nodes_discard, N_min_Dh_main=N_min_Dh_main, sparse_solver=sparse_solver_GPU)
             self.xn = None  # not implemented in this mode (for now)
             self.yn = None  # not implemented in this mode (for now)
+        elif PyPICmode == 'CUDAFiniteDifferences_ShortleyWeller':
+            self.flagGPU = True
+            import PyPIC.CUDAFiniteDifferences_ShortleyWeller_SquareGrid as PIC_FDSW
+            self.PyPICobj = PIC_FDSW.FiniteDifferences_ShortleyWeller_SquareGrid(
+                chamb=chamb, Dh=Dh, sparse_solver='cuDSS')
+            self.xn = self.PyPICobj.xn
+            self.yn = self.PyPICobj.yn
+        elif PyPICmode == 'CUDAFiniteDifferences_Staircase':
+            self.flagGPU = True
+            import PyPIC.CUDAFiniteDifferences_Staircase_SquareGrid as PIC_FDSQ
+            self.PyPICobj = PIC_FDSQ.FiniteDifferences_Staircase_SquareGrid(
+                chamb=chamb, Dh=Dh, sparse_solver='cupy_splu')
+            self.xn = self.PyPICobj.xn
+            self.yn = self.PyPICobj.yn
         else:
             raise ValueError('PyPICmode not recognized')
+
+        if self.flagGPU:
+            self.array_backend = cp
 
         self.Dh = self.PyPICobj.Dh
         self.xg = self.PyPICobj.xg
@@ -188,7 +214,7 @@ class space_charge:
         if not self.flagGPU:
             self.PyPICobj.scatter(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp], MP_e.nel_mp[0:MP_e.N_mp], charge=MP_e.charge, flag_add=not(flag_reset))
         else:
-            self.PyPICobj.scatter(cp.array(MP_e.x_mp[0:MP_e.N_mp]), cp.array(MP_e.y_mp[0:MP_e.N_mp]), cp.array(MP_e.nel_mp[0:MP_e.N_mp]), charge=cp.array(MP_e.charge), flag_add=not(flag_reset))
+            self.PyPICobj.scatter(cp.asarray(MP_e.x_mp[0:MP_e.N_mp]), cp.asarray(MP_e.y_mp[0:MP_e.N_mp]), cp.asarray(MP_e.nel_mp[0:MP_e.N_mp]), charge=MP_e.charge, flag_add=not(flag_reset))
         # solve
         if flag_solve:
 
@@ -215,15 +241,14 @@ class space_charge:
     #@profile
     def compute_spchg_efield_from_rho(self, rho, flag_verbose=True):
         if self.flagGPU:
-            rho = cp.array(rho)
+            rho = cp.asarray(rho)
         self.PyPICobj.solve(rho=rho, flag_verbose=flag_verbose)
 
     def get_sc_eletric_field(self, MP_e):
         if not self.flagGPU:
             Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp])
         else:
-            Ex_sc_n_GPU, Ey_sc_n_GPU = self.PyPICobj.gather(cp.array(MP_e.x_mp[0:MP_e.N_mp]), cp.array(MP_e.y_mp[0:MP_e.N_mp]))
-            Ex_sc_n = Ex_sc_n_GPU.get(); Ey_sc_n = Ey_sc_n_GPU.get()
+            Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(cp.asarray(MP_e.x_mp[0:MP_e.N_mp]), cp.asarray(MP_e.y_mp[0:MP_e.N_mp]))
         return Ex_sc_n, Ey_sc_n
 
     def get_potential_electric_energy(self):

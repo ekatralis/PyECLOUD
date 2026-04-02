@@ -54,8 +54,10 @@
 import numpy as np
 import scipy.io as sio
 import scipy.special as sspe
+import cupy as cp
 from numpy import array
 from . import int_field_for as iff
+from PyPIC.CUDAFiniteDifferences_Staircase_SquareGrid import int_field_cu
 
 
 def bunch_train4(t, b_spac, t_offs, ppb_vect, sigmaz_vect):
@@ -90,10 +92,13 @@ class beam_and_timing:
                  x_beam_pos=0., y_beam_pos=0., save_beam_field_file_as=None,
                  flag_secodary_beam=False, t_primary_beam=None,
                  Nx=None, Ny=None, nimag=None,
-                 progress_mapgen_file=None):
+                 progress_mapgen_file=None, use_gpu=False):
 
         if chamb.is_outside(np.array([x_beam_pos]), np.array([y_beam_pos])):
             raise ValueError('The beam is outside the chamber!')
+
+        self.use_gpu = use_gpu
+        self.array_backend = cp if use_gpu else np
 
         flag_unif_Dt = True
 
@@ -174,7 +179,7 @@ class beam_and_timing:
 
             from . import space_charge_class as scc
             from numpy import exp, pi
-            scb = scc.space_charge(chamb, Dh_beam_field, Dt_sc=1.)
+            scb = scc.space_charge(chamb, Dh_beam_field, Dt_sc=1., use_gpu=use_gpu)
 
             print('Computing beam charge density')
             #rho=1./(2.*pi*sigmax*sigmay)*exp(-(scb.xn-x_beam_pos)**2/(2.*sigmax**2)-(scb.yn-y_beam_pos)**2/(2.*sigmay**2))
@@ -318,8 +323,12 @@ class beam_and_timing:
             dx_beam = xx_beam[1] - xx_beam[0]
             dy_beam = yy_beam[1] - yy_beam[0]
 
-            self.Ex_beam = Ex_beam
-            self.Ey_beam = Ey_beam
+            if self.use_gpu:
+                self.Ex_beam = cp.asarray(Ex_beam)
+                self.Ey_beam = cp.asarray(Ey_beam)
+            else:
+                self.Ex_beam = Ex_beam
+                self.Ey_beam = Ey_beam
             self.xmin_beam = xmin_beam
             self.ymin_beam = ymin_beam
             self.dx_beam = dx_beam
@@ -373,14 +382,28 @@ class beam_and_timing:
 
         if (self.lam_t_curr > self.lam_th_beam_field) and (MP_e.N_mp > 0):
             ## compute beam electric field
-            Ex_n_beam, Ey_n_beam = iff.int_field(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp],
-                                                 self.xmin_beam, self.ymin_beam, self.dx_beam, self.dy_beam, self.Ex_beam, self.Ey_beam)
+            if self.use_gpu:
+                Ex_n_beam = cp.zeros(MP_e.N_mp, dtype=cp.float64)
+                Ey_n_beam = cp.zeros(MP_e.N_mp, dtype=cp.float64)
+                int_field_cu(
+                    MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp],
+                    self.xmin_beam, self.ymin_beam,
+                    self.dx_beam, self.dy_beam,
+                    self.Ex_beam, self.Ey_beam,
+                    Ex_n=Ex_n_beam, Ey_n=Ey_n_beam)
+            else:
+                Ex_n_beam, Ey_n_beam = iff.int_field(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp],
+                                                     self.xmin_beam, self.ymin_beam, self.dx_beam, self.dy_beam, self.Ex_beam, self.Ey_beam)
             Ex_n_beam = self.beam_charge * self.lam_t_curr * Ex_n_beam
             Ey_n_beam = self.beam_charge * self.lam_t_curr * Ey_n_beam
 
         else:
-            Ex_n_beam = 0.
-            Ey_n_beam = 0.
+            if self.use_gpu and getattr(MP_e, "use_gpu", False):
+                Ex_n_beam = cp.asarray([0.])[0]
+                Ey_n_beam = cp.asarray([0.])[0]
+            else:
+                Ex_n_beam = 0.
+                Ey_n_beam = 0.
 
         return Ex_n_beam, Ey_n_beam
 
@@ -392,7 +415,11 @@ class beam_and_timing:
             Ex_n_beam = self.beam_charge * self.lam_t_curr * Ex_n_beam
             Ey_n_beam = self.beam_charge * self.lam_t_curr * Ey_n_beam
         else:
-            Ex_n_beam = 0.
-            Ey_n_beam = 0.
+            if self.use_gpu and getattr(MP_e, "use_gpu", False):
+                Ex_n_beam = cp.asarray([0.])[0]
+                Ey_n_beam = cp.asarray([0.])[0]
+            else:
+                Ex_n_beam = 0.
+                Ey_n_beam = 0.
 
         return Ex_n_beam, Ey_n_beam

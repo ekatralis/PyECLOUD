@@ -225,7 +225,8 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                                          target_grid_beam=b_par.target_grid_beam, N_nodes_discard_beam=b_par.N_nodes_discard_beam, N_min_Dh_main_beam=b_par.N_min_Dh_main_beam,
                                          chamb=chamb, sigmax=b_par.sigmax, sigmay=b_par.sigmay,
                                          x_beam_pos=b_par.x_beam_pos, y_beam_pos=b_par.y_beam_pos, save_beam_field_file_as=b_par.save_beam_field_file_as,
-                                         Nx=b_par.Nx, Ny=b_par.Ny, nimag=b_par.nimag, progress_mapgen_file=progress_mapgen_file)
+                                         Nx=b_par.Nx, Ny=b_par.Ny, nimag=b_par.nimag, progress_mapgen_file=progress_mapgen_file,
+                                         use_gpu=cc.use_gpu)
         
         if beamtim.N_pass_tot % cc.save_mat_every != 0:
             raise ValueError("Variable save_mat_every=" + str(cc.save_mat_every) + " does not divide the total number of passages=" + str(beamtim.N_pass_tot))
@@ -255,7 +256,8 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                                                              chamb=chamb, sigmax=sb_par.sigmax, sigmay=sb_par.sigmay,
                                                              x_beam_pos=sb_par.x_beam_pos, y_beam_pos=sb_par.y_beam_pos, save_beam_field_file_as=sb_par.save_beam_field_file_as,
                                                              flag_secodary_beam=True, t_primary_beam=beamtim.t,
-                                                             Nx=sb_par.Nx, Ny=sb_par.Ny, nimag=sb_par.nimag, progress_mapgen_file=(cc.progress_path + ('_mapgen_sec_%d' % ii))))
+                                                             Nx=sb_par.Nx, Ny=sb_par.Ny, nimag=sb_par.nimag, progress_mapgen_file=(cc.progress_path + ('_mapgen_sec_%d' % ii)),
+                                                             use_gpu=cc.use_gpu))
     else:
         beamtim = None
         sec_beams_list = []
@@ -279,6 +281,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                                            Dh_U_eV=cc.Dh_electric_energy)
         else:
             spacech_ele_sim = scc.space_charge(chamb, cc.Dh_sc, Dt_sc=cc.Dt_sc, sparse_solver=cc.sparse_solver, PyPICmode=cc.PyPICmode,
+                                        use_gpu=cc.use_gpu,
                                         f_telescope=cc.f_telescope, target_grid=cc.target_grid, N_nodes_discard=cc.N_nodes_discard, N_min_Dh_main=cc.N_min_Dh_main,
                                         Dh_U_eV=cc.Dh_electric_energy)
 
@@ -511,7 +514,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                                                           cc.B_map_file, cc.fact_Bmap, cc.B_zero_thrhld)
         elif cc.track_method == 'BorisMultipole':
             dynamics = dynmul.pusher_Boris_multipole(Dt=cc.Dt, N_sub_steps=cc.N_sub_steps, B_multip=cc.B_multip, B_skew=cc.B_skew,
-                        B0x=cc.B0x, B0y=cc.B0y, B0z=cc.B0z)
+                        B0x=cc.B0x, B0y=cc.B0y, B0z=cc.B0z, use_gpu=cc.use_gpu)
         else:
             raise inp_spec.PyECLOUD_ConfigException("track_method should be 'Boris' or 'StrongBdip' or 'StrongBgen' or 'BorisMultipole'")
 
@@ -531,6 +534,9 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
         if thiscloud.filename_init_MP_state != -1 and thiscloud.filename_init_MP_state is not None:
             print("Adding initial electrons from: %s" % thiscloud.filename_init_MP_state)
             MP_e.add_from_file(thiscloud.filename_init_MP_state)
+
+        if cc.use_gpu:
+            MP_e.move_to_gpu()
 
         # Init empty rho for cloud
         if hasattr(spacech_ele_sim, 'rho'):

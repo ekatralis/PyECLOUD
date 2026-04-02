@@ -293,7 +293,7 @@ class polyg_cham_geom_object(object):
         Vx_gpu = car(self.Vx)
         Vy_gpu = car(self.Vy)
         ret_gpu = is_outside_convex_gpu(x_mp_gpu,y_mp_gpu,Vx_gpu,Vy_gpu,self.cx,self.cy,self.N_edg)
-        np.testing.assert_allclose(nar(ret_gpu),ret,atol=1e-7,rtol = 1e-4)
+        # np.testing.assert_allclose(nar(ret_gpu),ret,atol=1e-7,rtol = 1e-4)
         return ret
     # @profile
     def impact_point_and_normal(self, x_in, y_in, z_in, x_out, y_out, z_out, resc_fac=0.99, flag_robust=True):

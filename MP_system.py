@@ -54,6 +54,13 @@ import numpy as np
 from numpy.random import rand
 from . import hist_for as histf
 from scipy.constants import e, m_e
+import cupy as cp
+
+
+def _to_python_int(value):
+    if isinstance(value, cp.ndarray):
+        return int(value.item())
+    return int(value)
 
 
 class MP_positions:
@@ -132,6 +139,47 @@ class MP_system:
             self.N_mp_async_regen = N_mp_async_regen
             self.N_mp_after_async_regen = N_mp_after_async_regen
 
+        self.use_gpu = False
+        self.array_backend = np
+
+    def move_to_gpu(self):
+        if self.use_gpu:
+            return self
+
+        self.x_mp = cp.asarray(self.x_mp)
+        self.y_mp = cp.asarray(self.y_mp)
+        self.z_mp = cp.asarray(self.z_mp)
+        self.vx_mp = cp.asarray(self.vx_mp)
+        self.vy_mp = cp.asarray(self.vy_mp)
+        self.vz_mp = cp.asarray(self.vz_mp)
+        self.nel_mp = cp.asarray(self.nel_mp)
+
+        if self.flag_lifetime_hist:
+            self.t_last_impact = cp.asarray(self.t_last_impact)
+
+        self.use_gpu = True
+        self.array_backend = cp
+        return self
+
+    def move_to_cpu(self):
+        if not self.use_gpu:
+            return self
+
+        self.x_mp = cp.asnumpy(self.x_mp)
+        self.y_mp = cp.asnumpy(self.y_mp)
+        self.z_mp = cp.asnumpy(self.z_mp)
+        self.vx_mp = cp.asnumpy(self.vx_mp)
+        self.vy_mp = cp.asnumpy(self.vy_mp)
+        self.vz_mp = cp.asnumpy(self.vz_mp)
+        self.nel_mp = cp.asnumpy(self.nel_mp)
+
+        if self.flag_lifetime_hist:
+            self.t_last_impact = cp.asnumpy(self.t_last_impact)
+
+        self.use_gpu = False
+        self.array_backend = np
+        return self
+
     def clean_small_MPs(self):
 
         print("Cloud %s: Start clean. N_mp=%d Nel=%e"%(self.name, self.N_mp, np.sum(self.nel_mp[0:self.N_mp])))
@@ -139,7 +187,7 @@ class MP_system:
         flag_clean = (self.nel_mp < self.nel_mp_cl_th)
         flag_keep = ~(flag_clean)
         flag_keep[self.N_mp:] = False
-        self.N_mp = np.sum(flag_keep)
+        self.N_mp = _to_python_int(np.sum(flag_keep))
 
         self.x_mp[0:self.N_mp] = self.x_mp[flag_keep].copy()
         self.y_mp[0:self.N_mp] = self.y_mp[flag_keep].copy()
@@ -184,7 +232,7 @@ class MP_system:
 
                 flag_keep = np.array(len(self.x_mp) * [False])
                 flag_keep[:self.N_mp] = (rand(self.N_mp) > death_prob)
-                self.N_mp = np.sum(flag_keep)
+                self.N_mp = _to_python_int(np.sum(flag_keep))
 
                 self.x_mp[0:self.N_mp] = np.array(self.x_mp[flag_keep].copy())
                 self.y_mp[0:self.N_mp] = np.array(self.y_mp[flag_keep].copy())
@@ -258,7 +306,7 @@ class MP_system:
             flag_clean = (abs(self.x_mp) > x_max)
             flag_keep = ~(flag_clean)
             flag_keep[self.N_mp:] = False
-            self.N_mp = np.sum(flag_keep)
+            self.N_mp = _to_python_int(np.sum(flag_keep))
 
             self.x_mp[0:self.N_mp] = np.array(self.x_mp[flag_keep].copy())
             self.y_mp[0:self.N_mp] = np.array(self.y_mp[flag_keep].copy())
@@ -423,7 +471,7 @@ class MP_system:
                 self.vx_mp[self.N_mp:self.N_mp + n_add_step] = vx_temp
                 self.vy_mp[self.N_mp:self.N_mp + n_add_step] = vy_temp
                 self.vz_mp[self.N_mp:self.N_mp + n_add_step] = vz_temp
-                self.N_mp = self.N_mp + n_add_step
+                self.N_mp = _to_python_int(self.N_mp + n_add_step)
 
                 intnum_MP_in_cell[flag_add] = intnum_MP_in_cell[flag_add] - 1
                 flag_add = intnum_MP_in_cell > 0
@@ -536,6 +584,15 @@ class MP_system:
             return MP_positions(self.x_mp[:self.N_mp], self.y_mp[:self.N_mp], self.z_mp[:self.N_mp])
 
     def add_new_MPs(self, N_new_MP, nel_new_mp, x, y, z, vx, vy, vz, t_last_impact):
+        if self.use_gpu:
+            x = cp.asarray(x)
+            y = cp.asarray(y)
+            z = cp.asarray(z)
+            vx = cp.asarray(vx)
+            vy = cp.asarray(vy)
+            vz = cp.asarray(vz)
+            nel_new_mp = cp.asarray(nel_new_mp)
+            t_last_impact = cp.asarray(t_last_impact)
         N_mp_old = self.N_mp
         N_mp_new = self.N_mp + N_new_MP
         self.x_mp[N_mp_old:N_mp_new] = x
@@ -545,7 +602,7 @@ class MP_system:
         self.vy_mp[N_mp_old:N_mp_new] = vy
         self.vz_mp[N_mp_old:N_mp_new] = vz
         self.nel_mp[N_mp_old:N_mp_new] = nel_new_mp
-        self.N_mp = N_mp_new
+        self.N_mp = _to_python_int(N_mp_new)
 
         if self.flag_lifetime_hist:
             self.t_last_impact[N_mp_old:N_mp_new] = t_last_impact
@@ -579,13 +636,13 @@ class MP_system:
 
     def extract_dict(self):
         dict_MP = {
-            'x_mp': self.x_mp[:self.N_mp].copy(),
-            'y_mp': self.y_mp[:self.N_mp].copy(),
-            'z_mp': self.z_mp[:self.N_mp].copy(),
-            'vx_mp': self.vx_mp[:self.N_mp].copy(),
-            'vy_mp': self.vy_mp[:self.N_mp].copy(),
-            'vz_mp': self.vz_mp[:self.N_mp].copy(),
-            'nel_mp': self.nel_mp[:self.N_mp].copy(),
+            'x_mp': cp.asnumpy(self.x_mp[:self.N_mp]) if self.use_gpu else self.x_mp[:self.N_mp].copy(),
+            'y_mp': cp.asnumpy(self.y_mp[:self.N_mp]) if self.use_gpu else self.y_mp[:self.N_mp].copy(),
+            'z_mp': cp.asnumpy(self.z_mp[:self.N_mp]) if self.use_gpu else self.z_mp[:self.N_mp].copy(),
+            'vx_mp': cp.asnumpy(self.vx_mp[:self.N_mp]) if self.use_gpu else self.vx_mp[:self.N_mp].copy(),
+            'vy_mp': cp.asnumpy(self.vy_mp[:self.N_mp]) if self.use_gpu else self.vy_mp[:self.N_mp].copy(),
+            'vz_mp': cp.asnumpy(self.vz_mp[:self.N_mp]) if self.use_gpu else self.vz_mp[:self.N_mp].copy(),
+            'nel_mp': cp.asnumpy(self.nel_mp[:self.N_mp]) if self.use_gpu else self.nel_mp[:self.N_mp].copy(),
             'N_mp': self.N_mp,
         }
         return dict_MP

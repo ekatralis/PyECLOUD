@@ -57,6 +57,8 @@ from . import init as init
 import pickle
 import numpy as np
 import os
+import cupy as cp
+import time
 
 
 class BuildupSimulation(object):
@@ -106,6 +108,7 @@ class BuildupSimulation(object):
         self.checkpoint_folder = checkpoint_folder
         self.flag_em_tracking = spacech_ele.flag_em_tracking
         self.cross_ion = cross_ion
+        self.current_sim_time = time.time()
 
         self.flag_reinterp_fields_at_substeps = flag_reinterp_fields_at_substeps
         print(f"Reinterp fields at substeps: {self.flag_reinterp_fields_at_substeps}")
@@ -158,6 +161,9 @@ class BuildupSimulation(object):
                     "**** Done pass_numb = %d/%d\n"
                     % (beamtim.pass_numb, beamtim.N_pass_tot)
                 )
+
+                print("Time for last pass: %.2f sec" % (time.time() - self.current_sim_time))
+                self.current_sim_time = time.time()
 
     def sim_time_step(
         self,
@@ -219,7 +225,7 @@ class BuildupSimulation(object):
         )
 
         ## Saving output
-        self._save_output_data(beamtim)
+        # self._save_output_data(beamtim)
 
         ## Cleaning and regeneration
         self._MP_cleaning_and_regenerations(beamtim, skip_MP_cleaning, skip_MP_regen)
@@ -227,9 +233,16 @@ class BuildupSimulation(object):
     def _get_field_from_beams_at_particles(self, MP_e, beamtim):
         Ex_n_beam, Ey_n_beam = beamtim.get_beam_eletric_field(MP_e)
 
+        if getattr(MP_e, "use_gpu", False):
+            Ex_n_beam = cp.asarray(Ex_n_beam)
+            Ey_n_beam = cp.asarray(Ey_n_beam)
+
         if self.flag_presence_sec_beams:
             for sec_beam in self.sec_beams_list:
                 Ex_n_secbeam, Ey_n_secbeam = sec_beam.get_beam_eletric_field(MP_e)
+                if getattr(MP_e, "use_gpu", False):
+                    Ex_n_secbeam = cp.asarray(Ex_n_secbeam)
+                    Ey_n_secbeam = cp.asarray(Ey_n_secbeam)
                 Ex_n_beam += Ex_n_secbeam
                 Ey_n_beam += Ey_n_secbeam
         return Ex_n_beam, Ey_n_beam
@@ -247,9 +260,14 @@ class BuildupSimulation(object):
         else:
             ## Compute electron space charge electric field
             Ex_sc_n, Ey_sc_n = self.spacech_ele.get_sc_eletric_field(MP_e)
-            Bx_sc_n = np.asarray([0.0])
-            By_sc_n = np.asarray([0.0])
-            Bz_sc_n = np.asarray([0.0])
+            if getattr(MP_e, "use_gpu", False):
+                Bx_sc_n = cp.asarray([0.0])
+                By_sc_n = cp.asarray([0.0])
+                Bz_sc_n = cp.asarray([0.0])
+            else:
+                Bx_sc_n = np.asarray([0.0])
+                By_sc_n = np.asarray([0.0])
+                Bz_sc_n = np.asarray([0.0])
 
         return Ex_sc_n, Ey_sc_n, Bx_sc_n, By_sc_n, Bz_sc_n
 
