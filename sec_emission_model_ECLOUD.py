@@ -189,13 +189,13 @@ class SEY_model_ECLOUD(object):
             # Add new MPs
             if n_add_total != 0:
                 # Clone MPs
-                x_new_MPs = array_backend.repeat(x_impact, n_add)
-                y_new_MPs = array_backend.repeat(y_impact, n_add)
-                z_new_MPs = array_backend.repeat(z_impact, n_add)
-                norm_x_add = array_backend.repeat(Norm_x, n_add)
-                norm_y_add = array_backend.repeat(Norm_y, n_add)
-                nel_new_MPs = array_backend.repeat(nel_replace, n_add)
-                E_impact_eV_add = array_backend.repeat(E_impact_eV, n_add)
+                x_new_MPs = self.backend_context.repeat(x_impact, n_add)
+                y_new_MPs = self.backend_context.repeat(y_impact, n_add)
+                z_new_MPs = self.backend_context.repeat(z_impact, n_add)
+                norm_x_add = self.backend_context.repeat(Norm_x, n_add)
+                norm_y_add = self.backend_context.repeat(Norm_y, n_add)
+                nel_new_MPs = self.backend_context.repeat(nel_replace, n_add)
+                E_impact_eV_add = self.backend_context.repeat(E_impact_eV, n_add)
 
                 # Generate new MP properties, angles and energies
                 En_truesec_eV_add = ee.sec_energy_hilleret_model2(
@@ -207,7 +207,7 @@ class SEY_model_ECLOUD(object):
                     n_add_total, En_truesec_eV_add, norm_x_add, norm_y_add, mass)
 
                 if flag_seg:
-                    i_seg_new_MPs = array_backend.repeat(i_found, n_add)
+                    i_seg_new_MPs = self.backend_context.repeat(i_found, n_add)
                 else:
                     i_seg_new_MPs = None
 
@@ -224,7 +224,7 @@ class SEY_model_ECLOUD(object):
         events = flag_truesec
         event_type = flag_truesec
         if n_add_total != 0:
-            events_add = array_backend.repeat(event_type, n_add)
+            events_add = self.backend_context.repeat(event_type, n_add)
             events = array_backend.concatenate([event_type, events_add])
         extended_event_type = events
 

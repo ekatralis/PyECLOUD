@@ -240,15 +240,10 @@ class space_charge:
 
     #@profile
     def compute_spchg_efield_from_rho(self, rho, flag_verbose=True):
-        if self.flagGPU:
-            rho = cp.asarray(rho)
         self.PyPICobj.solve(rho=rho, flag_verbose=flag_verbose)
 
     def get_sc_eletric_field(self, MP_e):
-        if not self.flagGPU:
-            Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp])
-        else:
-            Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(cp.asarray(MP_e.x_mp[0:MP_e.N_mp]), cp.asarray(MP_e.y_mp[0:MP_e.N_mp]))
+        Ex_sc_n, Ey_sc_n = self.PyPICobj.gather(MP_e.x_mp[0:MP_e.N_mp], MP_e.y_mp[0:MP_e.N_mp])
         return Ex_sc_n, Ey_sc_n
 
     def get_potential_electric_energy(self):

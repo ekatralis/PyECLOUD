@@ -189,7 +189,8 @@ class beam_and_timing:
                                                   - sspe.erf((scb.xn - x_beam_pos) / (np.sqrt(2) * sigmax) - Dh_beam_field / (2 * np.sqrt(2) * sigmax)))\
                 * (sspe.erf((scb.yn - y_beam_pos) / (np.sqrt(2) * sigmay) + Dh_beam_field / (2 * np.sqrt(2) * sigmay))\
                    - sspe.erf((scb.yn - y_beam_pos) / (np.sqrt(2) * sigmay) - Dh_beam_field / (2 * np.sqrt(2) * sigmay)))
-
+            if self.use_gpu:
+                rho = cp.asarray(rho)
             scb.compute_spchg_efield_from_rho(rho, flag_verbose=True)
 
             Ex_beam = scb.efx
@@ -400,8 +401,8 @@ class beam_and_timing:
 
         else:
             if self.use_gpu and getattr(MP_e, "use_gpu", False):
-                Ex_n_beam = cp.asarray([0.])[0]
-                Ey_n_beam = cp.asarray([0.])[0]
+                Ex_n_beam = 0.0
+                Ey_n_beam = 0.0
             else:
                 Ex_n_beam = 0.
                 Ey_n_beam = 0.
@@ -417,8 +418,8 @@ class beam_and_timing:
             Ey_n_beam = self.beam_charge * self.lam_t_curr * Ey_n_beam
         else:
             if self.use_gpu and getattr(MP_e, "use_gpu", False):
-                Ex_n_beam = cp.asarray([0.])[0]
-                Ey_n_beam = cp.asarray([0.])[0]
+                Ex_n_beam = 0.0
+                Ey_n_beam = 0.0
             else:
                 Ex_n_beam = 0.
                 Ey_n_beam = 0.

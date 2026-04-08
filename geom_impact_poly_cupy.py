@@ -93,11 +93,11 @@ _impact_point_and_normal_kernel = cp.RawKernel(
 )
 
 
-def _as_f64_device_array(arr, name):
-    out = cp.asarray(arr, dtype=cp.float64)
-    if out.ndim != 1:
-        raise ValueError(f"{name} must be a 1D array.")
-    return out
+# def _as_f64_device_array(arr, name):
+#     out = cp.asarray(arr, dtype=cp.float64)
+#     if out.ndim != 1:
+#         raise ValueError(f"{name} must be a 1D array.")
+#     return out
 
 
 def impact_point_and_normal(
@@ -117,16 +117,16 @@ def impact_point_and_normal(
     threads_per_block=256,
     stream=None,
 ):
-    x_in = _as_f64_device_array(x_in, "x_in")
-    y_in = _as_f64_device_array(y_in, "y_in")
-    z_in = _as_f64_device_array(z_in, "z_in")
-    x_out = _as_f64_device_array(x_out, "x_out")
-    y_out = _as_f64_device_array(y_out, "y_out")
-    z_out = _as_f64_device_array(z_out, "z_out")
-    Vx = _as_f64_device_array(Vx, "Vx")
-    Vy = _as_f64_device_array(Vy, "Vy")
-    Nx = _as_f64_device_array(Nx, "Nx")
-    Ny = _as_f64_device_array(Ny, "Ny")
+    # x_in = _as_f64_device_array(x_in, "x_in")
+    # y_in = _as_f64_device_array(y_in, "y_in")
+    # z_in = _as_f64_device_array(z_in, "z_in")
+    # x_out = _as_f64_device_array(x_out, "x_out")
+    # y_out = _as_f64_device_array(y_out, "y_out")
+    # z_out = _as_f64_device_array(z_out, "z_out")
+    # Vx = _as_f64_device_array(Vx, "Vx")
+    # Vy = _as_f64_device_array(Vy, "Vy")
+    # Nx = _as_f64_device_array(Nx, "Nx")
+    # Ny = _as_f64_device_array(Ny, "Ny")
 
     n_impacts = int(x_in.size)
     if any(arr.size != n_impacts for arr in (y_in, z_in, x_out, y_out, z_out)):

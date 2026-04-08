@@ -60,6 +60,7 @@ from . import geom_impact_poly_cython as gipc
 from . import geom_impact_poly_cupy as gipcu
 # import cupy as cp
 from line_profiler import profile
+import time
 
 import cupy as cp
 
@@ -209,10 +210,12 @@ class polyg_cham_geom_object(object):
         use_gpu = self.use_gpu and not force_cpu
         xp = cp if use_gpu else np
 
+        # start_time = time.time()
         if use_gpu:
             x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipcu.impact_point_and_normal(
                 x_in, y_in, z_in, x_out, y_out, z_out,
                 self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+            # cp.cuda.get_current_stream().synchronize()
         else:
             if not force_cpu:
                 x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(
@@ -222,7 +225,8 @@ class polyg_cham_geom_object(object):
                 x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(
                     x_in, y_in, z_in, x_out, y_out, z_out,
                     force_numpy(self.Vx), force_numpy(self.Vy), force_numpy(self.Nx), force_numpy(self.Ny), force_numpy(self.N_edg), resc_fac)
-
+        # end_time = time.time()
+        # print('Time for impact point and normal calculation: %.3f ms' % ((end_time - start_time) * 1000))
         mask_found = i_found >= 0
         n_found = int(xp.count_nonzero(mask_found))
 

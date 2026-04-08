@@ -519,9 +519,9 @@ class pusher_Boris_multipole():
                     self._B_field_gpu, self._B_field_skew_gpu,
                     xn1, yn1, zn1,
                     vxn1, vyn1, vzn1,
-                    cp.asarray(Ex_n), cp.asarray(Ey_n),
+                    Ex_n, Ey_n,
                     MP_e.charge, MP_e.mass,
-                    cp.asarray(Bx_arr), cp.asarray(By_arr), cp.asarray(Bz_arr),
+                    Bx_arr, By_arr, Bz_arr,
                     bool(custom_B))
             else:
                 boris_step_multipole(N_sub_steps, Dt_substep, self.B_field, self.B_field_skew,

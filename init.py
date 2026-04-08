@@ -146,6 +146,10 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
     cc = mlm.obj_from_dict(config_dict)
     cc.use_gpu = bool(int(os.environ.get('PYECL_USE_GPU', cc.use_gpu)))
     backend_context = build_backend_context(cc.use_gpu)
+    if cc.use_gpu and not skip_pyeclsaver:
+        skip_pyeclsaver = True
+        import warnings
+        warnings.warn("GPU mode: skipping pyecloud_saver for now to keep the runtime device-resident.")
 
     # Init beam and possibly second beams
     if not skip_beam:

@@ -53,11 +53,11 @@ _update_seg_impact_kernel = cp.RawKernel(
 )
 
 
-def _as_1d_device_array(arr, dtype, name):
-    out = cp.asarray(arr, dtype=dtype)
-    if out.ndim != 1:
-        raise ValueError(f"{name} must be a 1D array.")
-    return out
+# def _as_1d_device_array(arr, dtype, name):
+#     out = cp.asarray(arr, dtype=dtype)
+#     if out.ndim != 1:
+#         raise ValueError(f"{name} must be a 1D array.")
+#     return out
 
 
 def update_seg_impact(
@@ -89,8 +89,8 @@ def update_seg_impact(
     cupy.ndarray
         The updated histogram on the GPU.
     """
-    i_seg_mp = _as_1d_device_array(i_seg_mp, cp.int32, "i_seg_mp")
-    wei_mp = _as_1d_device_array(wei_mp, cp.float64, "wei_mp")
+    # i_seg_mp = _as_1d_device_array(i_seg_mp, cp.int32, "i_seg_mp")
+    # wei_mp = _as_1d_device_array(wei_mp, cp.float64, "wei_mp")
 
     if i_seg_mp.size != wei_mp.size:
         raise ValueError("i_seg_mp and wei_mp must have the same length.")
@@ -100,7 +100,7 @@ def update_seg_impact(
             raise ValueError("N_seg must be provided when hist is None.")
         hist = cp.zeros(int(N_seg), dtype=cp.float64)
     else:
-        hist = _as_1d_device_array(hist, cp.float64, "hist")
+        # hist = _as_1d_device_array(hist, cp.float64, "hist")
         if N_seg is not None and int(N_seg) != int(hist.size):
             raise ValueError("N_seg must match hist.size when both are given.")
 

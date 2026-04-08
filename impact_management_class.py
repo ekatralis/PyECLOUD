@@ -57,7 +57,6 @@ from . import seg_impact as segi
 from . import seg_impact_cupy as segicu
 from scipy.constants import e as qe
 from line_profiler import profile
-import cupy as cp
 from .backend_context import build_backend_context
 
 class impact_management(object):
@@ -198,6 +197,9 @@ class impact_management(object):
 
     def _sum_to_float(self, values):
         return float(self.array_backend.sum(values))
+
+    def _to_numpy(self, values):
+        return self.backend_context.to_numpy(values)
         
     @profile
     def backtrack_and_second_emiss(self, old_pos, MP_e, tt_curr=None):
@@ -396,6 +398,7 @@ class impact_management(object):
         return MP_e
 
     def extract_sey_curves(self, n_rep, E_impact_eV_test, cos_theta_test, charge, mass):
+        xp = self.array_backend
 
         deltas = {}
         for etype in list(self.sey_mod.event_types.keys()):
@@ -409,9 +412,11 @@ class impact_management(object):
 
                 # nel_emit, flag_elast, flag_truesec = sey_mod.SEY_process(nel_impact=np.ones(n_rep),
                 #                 E_impact_eV=Ene*np.ones(n_rep), costheta_impact=np.ones(n_rep)*ct, i_impact=np.array(n_rep*[0]))
-                nel_impact = np.ones(n_rep)
+                nel_impact = xp.ones(n_rep, dtype=float)
+                zeros = xp.zeros_like(nel_impact)
+                ones = xp.ones_like(nel_impact)
                 # Assuming normal is along x
-                v_mod = np.sqrt(2 * Ene * qe / mass) * np.ones_like(nel_impact)
+                v_mod = np.sqrt(2 * Ene * qe / mass) * ones
                 vx = v_mod * ct
                 vy = v_mod * np.sqrt(1 - ct * ct)
 
@@ -419,23 +424,26 @@ class impact_management(object):
                     nel_replace, x_replace, y_replace, z_replace, vx_replace, vy_replace, vz_replace, i_seg_replace,\
                     nel_new_MPs, x_new_MPs, y_new_MPs, z_new_MPs, vx_new_MPs, vy_new_MPs, vz_new_MPs, i_seg_new_MPs =\
                     self.sey_mod.impacts_on_surface(
-                        mass=mass, nel_impact=nel_impact, x_impact=nel_impact * 0, y_impact=nel_impact * 0, z_impact=nel_impact * 0,
-                        vx_impact=vx * np.ones_like(nel_impact),
-                        vy_impact=vy * np.ones_like(nel_impact),
-                        vz_impact=nel_impact * 0,
-                        Norm_x=np.ones_like(nel_impact), Norm_y=np.zeros_like(nel_impact),
-                        i_found=np.int_(np.ones_like(nel_impact)),
-                        v_impact_n=vx * np.ones_like(nel_impact),
-                        E_impact_eV=Ene * np.ones_like(nel_impact),
-                        costheta_impact=ct * np.ones_like(nel_impact),
+                        mass=mass, nel_impact=nel_impact, x_impact=zeros, y_impact=zeros, z_impact=zeros,
+                        vx_impact=vx,
+                        vy_impact=vy,
+                        vz_impact=zeros,
+                        Norm_x=ones, Norm_y=zeros,
+                        i_found=xp.ones(n_rep, dtype=int),
+                        v_impact_n=vx,
+                        E_impact_eV=Ene * ones,
+                        costheta_impact=ct * ones,
                         nel_mp_th=1,
                         flag_seg=True)
 
                 for etype in list(self.sey_mod.event_types.keys()):
                     etype_name = self.sey_mod.event_types[etype]
                     thisdelta = deltas[etype_name]
-                    thisdelta[i_ct, i_ene] = np.sum(
-                        nel_emit_tot_events[event_type == etype]) / np.sum(nel_impact)
+                    emitted = nel_emit_tot_events[event_type == etype]
+                    thisdelta[i_ct, i_ene] = (
+                        self.backend_context.sum_to_float(emitted)
+                        / self.backend_context.sum_to_float(nel_impact)
+                    )
                     deltas[etype_name] = thisdelta
 
         print('Done extracting SEY curves.')
@@ -444,6 +452,7 @@ class impact_management(object):
 
     def extract_energy_distributions(self, n_rep, E_impact_eV_test, cos_theta_test, mass, Nbin_extract_ene, factor_ene_dist_max):
         """Extract energy distributions for secondary electrons."""
+        xp = self.array_backend
         emit_ene_g_hist = np.linspace(
             0., E_impact_eV_test * factor_ene_dist_max, Nbin_extract_ene)
         Dextract_ene = emit_ene_g_hist[1] - emit_ene_g_hist[0]
@@ -458,9 +467,11 @@ class impact_management(object):
         for i_ct, ct in enumerate(cos_theta_test):
             print(('%d/%d' % (i_ct + 1, len(cos_theta_test))))
             Ene = E_impact_eV_test
-            nel_impact = np.ones(n_rep)
+            nel_impact = xp.ones(n_rep, dtype=float)
+            zeros = xp.zeros_like(nel_impact)
+            ones = xp.ones_like(nel_impact)
             # Assuming normal is along x
-            v_mod = np.sqrt(2 * Ene * qe / mass) * np.ones_like(nel_impact)
+            v_mod = np.sqrt(2 * Ene * qe / mass) * ones
             vx = v_mod * ct
             vy = v_mod * np.sqrt(1 - ct * ct)
 
@@ -468,29 +479,29 @@ class impact_management(object):
                 nel_replace, x_replace, y_replace, z_replace, vx_replace, vy_replace, vz_replace, i_seg_replace,\
                 nel_new_MPs, x_new_MPs, y_new_MPs, z_new_MPs, vx_new_MPs, vy_new_MPs, vz_new_MPs, i_seg_new_MPs =\
                 self.sey_mod.impacts_on_surface(
-                    mass=mass, nel_impact=nel_impact, x_impact=nel_impact * 0, y_impact=nel_impact * 0, z_impact=nel_impact * 0,
-                    vx_impact=vx * np.ones_like(nel_impact),
-                    vy_impact=vy * np.ones_like(nel_impact),
-                    vz_impact=nel_impact * 0,
-                    Norm_x=np.ones_like(nel_impact), Norm_y=np.zeros_like(nel_impact),
-                    i_found=np.int_(np.ones_like(nel_impact)),
-                    v_impact_n=vx * np.ones_like(nel_impact),
-                    E_impact_eV=Ene * np.ones_like(nel_impact),
-                    costheta_impact=ct * np.ones_like(nel_impact),
+                    mass=mass, nel_impact=nel_impact, x_impact=zeros, y_impact=zeros, z_impact=zeros,
+                    vx_impact=vx,
+                    vy_impact=vy,
+                    vz_impact=zeros,
+                    Norm_x=ones, Norm_y=zeros,
+                    i_found=xp.ones(n_rep, dtype=int),
+                    v_impact_n=vx,
+                    E_impact_eV=Ene * ones,
+                    costheta_impact=ct * ones,
                     nel_mp_th=1,
                     flag_seg=True)
 
-            v_replace_mod = np.sqrt(
+            v_replace_mod = xp.sqrt(
                 vx_replace**2 + vy_replace**2 + vz_replace**2)
             E_replace_eV = 0.5 * mass / qe * v_replace_mod * v_replace_mod
 
-            v_new_MPs_mod = np.sqrt(
+            v_new_MPs_mod = xp.sqrt(
                 vx_new_MPs**2 + vy_new_MPs**2 + vz_new_MPs**2)
             E_new_MPs_eV = 0.5 * mass / qe * v_new_MPs_mod * v_new_MPs_mod
 
-            E_all_MPs_eV = np.concatenate([E_replace_eV, E_new_MPs_eV])
+            E_all_MPs_eV = self._to_numpy(xp.concatenate([E_replace_eV, E_new_MPs_eV]))
 
-            extended_event_type = event_info['extended_event_type']
+            extended_event_type = self._to_numpy(event_info['extended_event_type'])
             for etype in list(self.sey_mod.event_types.keys()):
                 etype_name = self.sey_mod.event_types[etype]
                 extract_type = extract_ene_hist[etype_name]
