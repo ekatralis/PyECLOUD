@@ -584,15 +584,6 @@ class MP_system:
             return MP_positions(self.x_mp[:self.N_mp], self.y_mp[:self.N_mp], self.z_mp[:self.N_mp])
 
     def add_new_MPs(self, N_new_MP, nel_new_mp, x, y, z, vx, vy, vz, t_last_impact):
-        if self.use_gpu:
-            x = cp.asarray(x)
-            y = cp.asarray(y)
-            z = cp.asarray(z)
-            vx = cp.asarray(vx)
-            vy = cp.asarray(vy)
-            vz = cp.asarray(vz)
-            nel_new_mp = cp.asarray(nel_new_mp)
-            t_last_impact = cp.asarray(t_last_impact)
         N_mp_old = self.N_mp
         N_mp_new = self.N_mp + N_new_MP
         self.x_mp[N_mp_old:N_mp_new] = x

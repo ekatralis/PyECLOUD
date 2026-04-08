@@ -51,14 +51,15 @@
 #-End-preamble---------------------------------------------------------
 
 import numpy as np
-from numpy import sqrt, exp
-from numpy.random import rand
-import cupy as cp
 from . import electron_emission as ee
+from .backend_context import build_backend_context
 
 
-def yield_fun2(E, costheta, Emax, del_max, R0, E0, s, flag_costheta_delta_scale=True, flag_costheta_Emax_shift=True):
-    array_backend = cp if isinstance(E, cp.ndarray) or isinstance(costheta, cp.ndarray) else np
+def yield_fun2(E, costheta, Emax, del_max, R0, E0, s, backend_context=None,
+               flag_costheta_delta_scale=True, flag_costheta_Emax_shift=True):
+    if backend_context is None:
+        backend_context = build_backend_context(False)
+    array_backend = backend_context.array_backend
 
     if flag_costheta_delta_scale:
         del_max_tilde = del_max * array_backend.exp(0.5 * (1. - costheta))
@@ -93,8 +94,13 @@ class SEY_model_ECLOUD(object):
         self, Emax, del_max, R0,
         E_th=None, sigmafit=None, mufit=None,
         switch_no_increase_energy=0, thresh_low_energy=None, secondary_angle_distribution=None,
-        E0=150., s=1.35, flag_costheta_delta_scale=True, flag_costheta_Emax_shift=True
+        E0=150., s=1.35, flag_costheta_delta_scale=True, flag_costheta_Emax_shift=True,
+        use_gpu=False
     ):
+        self.use_gpu = bool(use_gpu)
+        self.backend_context = build_backend_context(self.use_gpu)
+        self.array_backend = self.backend_context.array_backend
+        self.random_backend = self.backend_context.random_backend
 
         self.E_th = E_th
         self.sigmafit = sigmafit
@@ -105,7 +111,8 @@ class SEY_model_ECLOUD(object):
 
         if secondary_angle_distribution is not None:
             from . import electron_emission
-            self.angle_dist_func = electron_emission.get_angle_dist_func(secondary_angle_distribution)
+            self.angle_dist_func = electron_emission.get_angle_dist_func(
+                secondary_angle_distribution, self.backend_context)
         else:
             self.angle_dist_func = None
 
@@ -123,13 +130,11 @@ class SEY_model_ECLOUD(object):
         pass
 
     def SEY_process(self, nel_impact, E_impact_eV, costheta_impact, i_impact):
-        array_backend = cp if isinstance(nel_impact, cp.ndarray) or isinstance(E_impact_eV, cp.ndarray) or isinstance(costheta_impact, cp.ndarray) else np
-        random_backend = cp.random if array_backend is cp else np.random
-
         yiel, ref_frac = yield_fun2(
             E_impact_eV, costheta_impact, self.Emax, self.del_max, self.R0, E0=self.E0, s=self.s,
+            backend_context=self.backend_context,
             flag_costheta_delta_scale=self.flag_costheta_delta_scale, flag_costheta_Emax_shift=self.flag_costheta_Emax_shift)
-        flag_elast = (random_backend.rand(len(ref_frac)) < ref_frac)
+        flag_elast = (self.random_backend.rand(len(ref_frac)) < ref_frac)
         flag_truesec = ~(flag_elast)
         nel_emit = nel_impact * yiel
 
@@ -138,7 +143,7 @@ class SEY_model_ECLOUD(object):
     def impacts_on_surface(self, mass, nel_impact, x_impact, y_impact, z_impact,
                            vx_impact, vy_impact, vz_impact, Norm_x, Norm_y, i_found,
                            v_impact_n, E_impact_eV, costheta_impact, nel_mp_th, flag_seg):
-        array_backend = cp if isinstance(nel_impact, cp.ndarray) or isinstance(x_impact, cp.ndarray) else np
+        array_backend = self.array_backend
 
         nel_emit_tot_events, flag_elast, flag_truesec = self.SEY_process(nel_impact, E_impact_eV, costheta_impact, i_found)
 
@@ -161,7 +166,7 @@ class SEY_model_ECLOUD(object):
         )
 
         # true secondary
-        N_true_sec = int(array_backend.count_nonzero(flag_truesec))
+        N_true_sec = self.backend_context.count_nonzero(flag_truesec)
         n_add_total = 0
         if N_true_sec > 0:
 
@@ -170,12 +175,13 @@ class SEY_model_ECLOUD(object):
             n_add[n_add < 0] = 0.  # in case of underflow
             nel_replace[flag_truesec] = nel_replace[flag_truesec] / (n_add[flag_truesec] + 1.)
 
-            n_add_total = int(array_backend.sum(n_add))
+            n_add_total = int(self.backend_context.scalar_to_float(array_backend.sum(n_add)))
 
             # MPs to be replaced
             En_truesec_eV = ee.sec_energy_hilleret_model2(
                 self.switch_no_increase_energy, N_true_sec, self.sigmafit, self.mufit,
-                self.E_th, E_impact_eV[flag_truesec], self.thresh_low_energy)
+                self.E_th, E_impact_eV[flag_truesec], self.thresh_low_energy,
+                backend_context=self.backend_context)
 
             vx_replace[flag_truesec], vy_replace[flag_truesec], vz_replace[flag_truesec] = self.angle_dist_func(
                 N_true_sec, En_truesec_eV, Norm_x[flag_truesec], Norm_y[flag_truesec], mass)
@@ -194,7 +200,8 @@ class SEY_model_ECLOUD(object):
                 # Generate new MP properties, angles and energies
                 En_truesec_eV_add = ee.sec_energy_hilleret_model2(
                     self.switch_no_increase_energy, n_add_total, self.sigmafit, self.mufit,
-                    self.E_th, E_impact_eV_add, self.thresh_low_energy)
+                    self.E_th, E_impact_eV_add, self.thresh_low_energy,
+                    backend_context=self.backend_context)
 
                 vx_new_MPs, vy_new_MPs, vz_new_MPs = self.angle_dist_func(
                     n_add_total, En_truesec_eV_add, norm_x_add, norm_y_add, mass)
@@ -205,14 +212,14 @@ class SEY_model_ECLOUD(object):
                     i_seg_new_MPs = None
 
         if n_add_total == 0:
-            nel_new_MPs = array_backend.array([])
-            x_new_MPs = array_backend.array([])
-            y_new_MPs = array_backend.array([])
-            z_new_MPs = array_backend.array([])
-            vx_new_MPs = array_backend.array([])
-            vy_new_MPs = array_backend.array([])
-            vz_new_MPs = array_backend.array([])
-            i_seg_new_MPs = array_backend.array([])
+            nel_new_MPs = array_backend.array([], dtype=float)
+            x_new_MPs = array_backend.array([], dtype=float)
+            y_new_MPs = array_backend.array([], dtype=float)
+            z_new_MPs = array_backend.array([], dtype=float)
+            vx_new_MPs = array_backend.array([], dtype=float)
+            vy_new_MPs = array_backend.array([], dtype=float)
+            vz_new_MPs = array_backend.array([], dtype=float)
+            i_seg_new_MPs = array_backend.array([], dtype=int)
 
         events = flag_truesec
         event_type = flag_truesec

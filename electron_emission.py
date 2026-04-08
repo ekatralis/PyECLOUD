@@ -52,41 +52,37 @@
 
 
 import time
+from functools import partial
 import numpy as np
-import numpy.random as random
-import cupy as cp
 from scipy.constants import e as qe
 import scipy.stats as stats
+from .backend_context import build_backend_context
 
 # Secondary electron secondaries
 
 
-def _get_array_backend(*arrays):
-    return cp if any(isinstance(arr, cp.ndarray) for arr in arrays) else np
+def _resolve_backend_context(backend_context):
+    if backend_context is None:
+        return build_backend_context(False)
+    return backend_context
 
 
-def _get_random_backend(array_backend):
-    return cp.random if array_backend is cp else random
-
-
-def _count_nonzero(array_backend, array):
-    return int(array_backend.count_nonzero(array))
-
-
-def sec_energy_hilleret_model2(switch_no_increase_energy, Ngen, sigmafit, mufit, E_th, En_impact_eV, thresh_low_energy):
-    array_backend = _get_array_backend(En_impact_eV)
-    random_backend = _get_random_backend(array_backend)
+def sec_energy_hilleret_model2(switch_no_increase_energy, Ngen, sigmafit, mufit, E_th,
+                               En_impact_eV, thresh_low_energy, backend_context=None):
+    backend_context = _resolve_backend_context(backend_context)
+    array_backend = backend_context.array_backend
+    random_backend = backend_context.random_backend
 
     if switch_no_increase_energy == 0:
         en_eV = random_backend.lognormal(mufit, sigmafit, Ngen)
         flag_above_th = (en_eV > E_th)
-        Nabove_th = _count_nonzero(array_backend, flag_above_th)
+        Nabove_th = backend_context.count_nonzero(flag_above_th)
 
         while Nabove_th > 0:
             en_eV[flag_above_th] = random_backend.lognormal(mufit, sigmafit, Nabove_th)
 
             flag_above_th = (en_eV > E_th)
-            Nabove_th = _count_nonzero(array_backend, flag_above_th)
+            Nabove_th = backend_context.count_nonzero(flag_above_th)
 
     elif switch_no_increase_energy == 2:  # Cut emitted energy at En_impact_eV
         En_emit_max = En_impact_eV.copy()
@@ -96,48 +92,48 @@ def sec_energy_hilleret_model2(switch_no_increase_energy, Ngen, sigmafit, mufit,
 
         en_eV = random_backend.lognormal(mufit, sigmafit, Ngen)
         flag_above_th = ((en_eV > En_emit_max) & (~flag_low_energy))
-        Nabove_th = _count_nonzero(array_backend, flag_above_th)
+        Nabove_th = backend_context.count_nonzero(flag_above_th)
         while Nabove_th > 0:
             en_eV[flag_above_th] = random_backend.lognormal(mufit, sigmafit, Nabove_th)
 
             flag_above_th = ((en_eV > En_emit_max) & (~flag_low_energy))
-            Nabove_th = _count_nonzero(array_backend, flag_above_th)
+            Nabove_th = backend_context.count_nonzero(flag_above_th)
 
-        N_low_ene = _count_nonzero(array_backend, flag_low_energy)
+        N_low_ene = backend_context.count_nonzero(flag_low_energy)
         en_eV[flag_low_energy] = En_impact_eV[flag_low_energy] * array_backend.sqrt(random_backend.rand(N_low_ene))  # Linear PDF for impacting energies < 1 eV
 
     elif switch_no_increase_energy == 1:
 
         raise ValueError('This part of the code is not supported anymore!')
 
-        en_eV = np.zeros_like(En_impact_eV, dtype=float)
+        en_eV = array_backend.zeros_like(En_impact_eV, dtype=float)
 
         flag_low_energy = En_impact_eV < thresh_low_energy
         flag_high_energy = ~(flag_low_energy)
-        N_low_ene = np.sum(flag_low_energy)
-        N_high_ene = np.sum(flag_high_energy)
+        N_low_ene = backend_context.count_nonzero(flag_low_energy)
+        N_high_ene = backend_context.count_nonzero(flag_high_energy)
 
         #generate low energy
-        en_eV_le = random.randn(N_low_ene)  # in eV
-        flag_negat = np.logical_or(en_eV_le < 0., en_eV_le > 4.)
-        N_neg = np.sum(flag_negat)
+        en_eV_le = random_backend.randn(N_low_ene)  # in eV
+        flag_negat = array_backend.logical_or(en_eV_le < 0., en_eV_le > 4.)
+        N_neg = backend_context.count_nonzero(flag_negat)
         while(N_neg > 0):
-            en_eV_le[flag_negat] = random.randn(N_neg)  # in eV
-            flag_negat = np.logical_or(en_eV_le < 0., en_eV_le > 4.)
-            N_neg = np.sum(flag_negat)
+            en_eV_le[flag_negat] = random_backend.randn(N_neg)  # in eV
+            flag_negat = array_backend.logical_or(en_eV_le < 0., en_eV_le > 4.)
+            N_neg = backend_context.count_nonzero(flag_negat)
         sigma_le = En_impact_eV[flag_low_energy] / 4.
         en_eV_le = (en_eV_le + 2.) * sigma_le
 
         #generate high energy
-        en_eV_he = random.lognormal(mufit, sigmafit, N_high_ene)
+        en_eV_he = random_backend.lognormal(mufit, sigmafit, N_high_ene)
 
-        flag_above_th = np.logical_or(en_eV_he > E_th, (en_eV_he - En_impact_eV[flag_high_energy]) > 0)
-        Nabove_th = np.sum(flag_above_th)
+        flag_above_th = array_backend.logical_or(en_eV_he > E_th, (en_eV_he - En_impact_eV[flag_high_energy]) > 0)
+        Nabove_th = backend_context.count_nonzero(flag_above_th)
 
         while Nabove_th > 0:
-            en_eV_he[flag_above_th] = random.lognormal(mufit, sigmafit, Nabove_th)
-            flag_above_th = np.logical_or(en_eV_he > E_th, (en_eV_he - En_impact_eV[flag_high_energy]) > 0)
-            Nabove_th = np.sum(flag_above_th)
+            en_eV_he[flag_above_th] = random_backend.lognormal(mufit, sigmafit, Nabove_th)
+            flag_above_th = array_backend.logical_or(en_eV_he > E_th, (en_eV_he - En_impact_eV[flag_high_energy]) > 0)
+            Nabove_th = backend_context.count_nonzero(flag_above_th)
 
         en_eV[flag_high_energy] = en_eV_he
         en_eV[flag_low_energy] = en_eV_le
@@ -159,27 +155,29 @@ def sec_energy_hilleret_model2(switch_no_increase_energy, Ngen, sigmafit, mufit,
 # https://cds.cern.ch/record/537336?ln=en
 
 # Fixed behavior
-def velocities_angle_cosine_3D(N_new_MP, En_gen, Norm_x, Norm_y, mass):
-    array_backend = _get_array_backend(En_gen, Norm_x, Norm_y)
-    random_backend = _get_random_backend(array_backend)
+def velocities_angle_cosine_3D(N_new_MP, En_gen, Norm_x, Norm_y, mass, backend_context=None):
+    backend_context = _resolve_backend_context(backend_context)
+    array_backend = backend_context.array_backend
+    random_backend = backend_context.random_backend
     sin_theta_p = array_backend.sqrt(random_backend.rand(N_new_MP))
-    return _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass)
+    return _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass, backend_context)
 
 # This has been the behavior of the code until the error was spotted.
 
 
-def velocities_angle_cosine_2D(N_new_MP, En_gen, Norm_x, Norm_y, mass):
-    array_backend = _get_array_backend(En_gen, Norm_x, Norm_y)
-    random_backend = _get_random_backend(array_backend)
+def velocities_angle_cosine_2D(N_new_MP, En_gen, Norm_x, Norm_y, mass, backend_context=None):
+    backend_context = _resolve_backend_context(backend_context)
+    array_backend = backend_context.array_backend
+    random_backend = backend_context.random_backend
     sin_theta_p = random_backend.rand(N_new_MP)
-    return _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass)
+    return _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass, backend_context)
 
 # Avoid code duplication
 
 
-def _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass):
-    array_backend = _get_array_backend(En_gen, Norm_x, Norm_y, sin_theta_p)
-    random_backend = _get_random_backend(array_backend)
+def _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass, backend_context):
+    array_backend = backend_context.array_backend
+    random_backend = backend_context.random_backend
     v_gen_mod = array_backend.sqrt(2. * qe / mass * En_gen)
 
     phi_p = random_backend.rand(N_new_MP) * 2 * np.pi
@@ -195,8 +193,9 @@ def _velocities_angle(N_new_MP, En_gen, Norm_x, Norm_y, sin_theta_p, mass):
     return vx_gen, vy_gen, vz_gen
 
 
-def velocities_angle_normal_emission(N_new_MP, En_gen, Norm_x, Norm_y, mass):
-    array_backend = _get_array_backend(En_gen, Norm_x, Norm_y)
+def velocities_angle_normal_emission(N_new_MP, En_gen, Norm_x, Norm_y, mass, backend_context=None):
+    backend_context = _resolve_backend_context(backend_context)
+    array_backend = backend_context.array_backend
     v_gen_mod = array_backend.sqrt(2. * qe / mass * En_gen)
 
     vx_gen = v_gen_mod * Norm_x
@@ -209,10 +208,11 @@ def velocities_angle_normal_emission(N_new_MP, En_gen, Norm_x, Norm_y, mass):
 # Interface
 
 
-def get_angle_dist_func(string):
+def get_angle_dist_func(string, backend_context=None):
+    backend_context = _resolve_backend_context(backend_context)
     if string == 'cosine_3D':
         print('Using cosine_3D emission angle distribution.')
-        return velocities_angle_cosine_3D
+        return partial(velocities_angle_cosine_3D, backend_context=backend_context)
     elif string == 'cosine_2D':
         print("""
 Warning! The 2D emission angle distribution is used!
@@ -225,10 +225,10 @@ For more info, see presentation by P. Dijkstal on the angle of emission
 of generated electrons (https://indico.cern.ch/event/673160/).
 """)
         time.sleep(3)
-        return velocities_angle_cosine_2D
+        return partial(velocities_angle_cosine_2D, backend_context=backend_context)
     elif string == 'normal_emission':
         print('Electrons are emmited orthogonally to the chamber surface.')
-        return velocities_angle_normal_emission
+        return partial(velocities_angle_normal_emission, backend_context=backend_context)
     else:
         raise ValueError("""
 The emission angle distribution must be specified!
@@ -254,56 +254,58 @@ def specular_velocity(vx_impact, vy_impact, Norm_x, Norm_y, v_impact_n):
 
 
 class _gen_energy_base(object):
-    def __init__(self, e_pe_sigma, e_pe_max):
+    def __init__(self, e_pe_sigma, e_pe_max, backend_context):
         self.e_pe_sigma = e_pe_sigma
         self.e_pe_max = e_pe_max
+        self.backend_context = backend_context
+        self.array_backend = backend_context.array_backend
+        self.random_backend = backend_context.random_backend
 
 
 class _lognormal(_gen_energy_base):
-    def __call__(self, N_int_new_MP, array_backend=np):
-        return _get_random_backend(array_backend).lognormal(self.e_pe_max, self.e_pe_sigma, N_int_new_MP)
+    def __call__(self, N_int_new_MP):
+        return self.random_backend.lognormal(self.e_pe_max, self.e_pe_sigma, N_int_new_MP)
 
 
 class _gaussian(_gen_energy_base):
-    def __call__(self, N_int_new_MP, array_backend=np):
-        random_backend = _get_random_backend(array_backend)
-        En_gen = random_backend.randn(N_int_new_MP) * self.e_pe_sigma + self.e_pe_max
+    def __call__(self, N_int_new_MP):
+        En_gen = self.random_backend.randn(N_int_new_MP) * self.e_pe_sigma + self.e_pe_max
         flag_negat = (En_gen < 0.)
-        N_neg = _count_nonzero(array_backend, flag_negat)
+        N_neg = self.backend_context.count_nonzero(flag_negat)
         while(N_neg > 0):
-            En_gen[flag_negat] = random_backend.randn(N_neg) * self.e_pe_sigma + self.e_pe_max  # in eV
+            En_gen[flag_negat] = self.random_backend.randn(N_neg) * self.e_pe_sigma + self.e_pe_max  # in eV
             flag_negat = (En_gen < 0.)
-            N_neg = _count_nonzero(array_backend, flag_negat)
+            N_neg = self.backend_context.count_nonzero(flag_negat)
         return En_gen
 
 
 class _rect(_gen_energy_base):
-    def __call__(self, N_int_new_MP, array_backend=np):
-        return self.e_pe_max + (_get_random_backend(array_backend).rand(N_int_new_MP) - 0.5) * self.e_pe_sigma
+    def __call__(self, N_int_new_MP):
+        return self.e_pe_max + (self.random_backend.rand(N_int_new_MP) - 0.5) * self.e_pe_sigma
 
 
 class _mono(_gen_energy_base):
-    def __call__(self, N_int_new_MP, array_backend=np):
-        return array_backend.ones(N_int_new_MP) * self.e_pe_max
+    def __call__(self, N_int_new_MP):
+        return self.array_backend.ones(N_int_new_MP) * self.e_pe_max
 
 
 class _lorentz(_gen_energy_base):
-    def __init__(self, e_pe_sigma, e_pe_max):
-        self.e_pe_sigma = e_pe_sigma
-        self.e_pe_max = e_pe_max
+    def __init__(self, e_pe_sigma, e_pe_max, backend_context):
+        _gen_energy_base.__init__(self, e_pe_sigma, e_pe_max, backend_context)
         self.xx_min = stats.cauchy.cdf(0, e_pe_max, e_pe_sigma)
         self.xx_max = 1 # set this to something else if you want to cut
 
-    def __call__(self, N_int_new_MP, array_backend=np):
-        xx_rand = _get_random_backend(array_backend).rand(N_int_new_MP) * (self.xx_max - self.xx_min) + self.xx_min
-        if array_backend is cp:
-            return self.e_pe_max + self.e_pe_sigma * array_backend.tan(array_backend.pi * (xx_rand - 0.5))
+    def __call__(self, N_int_new_MP):
+        xx_rand = self.random_backend.rand(N_int_new_MP) * (self.xx_max - self.xx_min) + self.xx_min
+        if self.backend_context.use_gpu:
+            return self.e_pe_max + self.e_pe_sigma * self.array_backend.tan(self.array_backend.pi * (xx_rand - 0.5))
         return stats.cauchy.ppf(xx_rand, self.e_pe_max, self.e_pe_sigma)
 
 # Interface
 
 
-def get_energy_distribution_func(energy_distribution, e_pe_sigma, e_pe_max):
+def get_energy_distribution_func(energy_distribution, e_pe_sigma, e_pe_max, backend_context=None):
+    backend_context = _resolve_backend_context(backend_context)
 
     if energy_distribution == 'lognormal':
         get_energy = _lognormal
@@ -318,4 +320,4 @@ def get_energy_distribution_func(energy_distribution, e_pe_sigma, e_pe_max):
     else:
         raise ValueError('Energy distribution %s is invalid!' % energy_distribution)
 
-    return get_energy(e_pe_sigma, e_pe_max)
+    return get_energy(e_pe_sigma, e_pe_max, backend_context)
