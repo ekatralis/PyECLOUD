@@ -547,9 +547,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
         if thiscloud.filename_init_MP_state != -1 and thiscloud.filename_init_MP_state is not None:
             print("Adding initial electrons from: %s" % thiscloud.filename_init_MP_state)
             MP_e.add_from_file(thiscloud.filename_init_MP_state)
-
-        if cc.use_gpu:
-            MP_e.move_to_gpu()
+        
 
         # Init empty rho for cloud
         if hasattr(spacech_ele_sim, 'rho'):

@@ -168,15 +168,14 @@ class polyg_cham_geom_object(object):
                 raise PyECLOUD_ChamberException(
                     'The polygon looks not convex!!!!\nIn this case you can use the general algorithm (probably slower) by setting:\nflag_assume_convex = False')
             self.cythonisoutside = gipc.is_outside_convex
+            self.cupyisoutside = gipcu.is_outside_convex
             print('Assuming convex polygon')
         else:
             self.cythonisoutside = gipc.is_outside_nonconvex
+            self.cupyisoutside = gipcu.is_outside_nonconvex
             print('No assumption on the convexity of the polygon')
 
         if self.use_gpu:
-            if not self.flag_assume_convex:
-                raise PyECLOUD_ChamberException(
-                    'GPU polygon chamber support currently requires flag_assume_convex = True')
             self.array_backend = cp
             self.Vx = cp.asarray(self.Vx)
             self.Vy = cp.asarray(self.Vy)
@@ -196,7 +195,7 @@ class polyg_cham_geom_object(object):
     @profile
     def is_outside(self, x_mp, y_mp):
         if self.use_gpu:
-            return gipcu.is_outside_convex(
+            return self.cupyisoutside(
                 x_mp, y_mp, self.Vx, self.Vy,
                 self.cx, self.cy, self.N_edg)
         else:

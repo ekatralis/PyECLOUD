@@ -247,6 +247,53 @@ _is_outside_convex_kernel = cp.RawKernel(
     _is_outside_convex_src, "is_outside_convex_kernel"
 )
 
+
+_is_outside_nonconvex_src = r'''
+extern "C" __global__
+void is_outside_nonconvex_kernel(
+    const double* __restrict__ x_mp,
+    const double* __restrict__ y_mp,
+    const int N_mp,
+    const double* __restrict__ Vx,
+    const double* __restrict__ Vy,
+    const int N_edg,
+    const double cx,
+    const double cy,
+    unsigned char* __restrict__ out_mask
+){
+    for (int idx = blockDim.x * blockIdx.x + threadIdx.x;
+         idx < N_mp;
+         idx += blockDim.x * gridDim.x)
+    {
+        const double x = x_mp[idx];
+        const double y = y_mp[idx];
+
+        int inside = (((x/cx)*(x/cx) + (y/cy)*(y/cy)) <= 1.0) ? 1 : 0;
+
+        if (!inside) {
+            int ii = 0;
+            int jj = N_edg - 1;
+            while (ii < N_edg) {
+                if ((Vy[ii] > y) != (Vy[jj] > y)) {
+                    if (x < (Vx[jj] - Vx[ii]) * (y - Vy[ii]) / (Vy[jj] - Vy[ii]) + Vx[ii]) {
+                        inside = !inside;
+                    }
+                }
+
+                jj = ii;
+                ++ii;
+            }
+        }
+
+        out_mask[idx] = (unsigned char)(!inside);
+    }
+}
+''';
+
+_is_outside_nonconvex_kernel = cp.RawKernel(
+    _is_outside_nonconvex_src, "is_outside_nonconvex_kernel"
+)
+
 # @profile
 def is_outside_convex(x_mp, y_mp, Vx, Vy, cx, cy, N_edg=None, *,
                           threads_per_block=256, stream=None):
@@ -311,3 +358,71 @@ def is_outside_convex(x_mp, y_mp, Vx, Vy, cx, cy, N_edg=None, *,
             _is_outside_convex_kernel((blocks,), (threads_per_block,), args, stream=stream)
 
     return out_u8.view(cp.bool_)  # boolean mask: True = outside, False = inside
+
+
+def is_outside_nonconvex(x_mp, y_mp, Vx, Vy, cx, cy, N_edg=None, *,
+                             threads_per_block=256, stream=None):
+    """
+    GPU version of is_outside_nonconvex.
+    Parameters
+    ----------
+    x_mp, y_mp : array_like (N,), float64
+        Query point coordinates.
+    Vx, Vy     : array_like (M,), float64
+        Polygon vertices. The kernel matches the Cython implementation and
+        uses the first N_edg vertices; closed polygons with a repeated final
+        vertex are also accepted.
+    cx, cy     : float
+        Ellipse radii used for the early-inclusion test.
+    N_edg      : int, optional
+        Number of polygon edges (defaults to len(Vx)-1 for closed polygons).
+    Returns
+    -------
+    out : cupy.ndarray (N,), bool
+        True for points outside; False for inside.
+    """
+    x_d = x_mp
+    y_d = y_mp
+    Vx_d = Vx
+    Vy_d = Vy
+
+    if N_edg is None:
+        N_edg = int(Vx_d.size) - 1
+    else:
+        N_edg = int(N_edg)
+
+    if Vx_d.size != Vy_d.size:
+        raise ValueError("Vx and Vy must have the same length.")
+    if N_edg < 0:
+        raise ValueError("N_edg must be non-negative.")
+    if Vx_d.size < N_edg or Vy_d.size < N_edg:
+        raise ValueError("Vx/Vy must contain at least N_edg vertices.")
+
+    N_mp = int(x_d.size)
+    if y_d.size != N_mp:
+        raise ValueError("x_mp and y_mp must have the same length.")
+
+    out_u8 = cp.empty(N_mp, dtype=cp.uint8)
+
+    blocks = (N_mp + threads_per_block - 1) // threads_per_block
+    blocks = max(1, min(blocks, 65535))
+
+    args = (
+        x_d, y_d, np.int32(N_mp),
+        Vx_d, Vy_d, np.int32(N_edg),
+        np.float64(cx), np.float64(cy),
+        out_u8,
+    )
+
+    if stream is None:
+        _is_outside_nonconvex_kernel((blocks,), (threads_per_block,), args)
+    else:
+        with stream:
+            _is_outside_nonconvex_kernel(
+                (blocks,),
+                (threads_per_block,),
+                args,
+                stream=stream,
+            )
+
+    return out_u8.view(cp.bool_)
