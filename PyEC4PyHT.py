@@ -61,6 +61,11 @@ from . import myloadmat_to_obj as mlm
 from . import buildup_simulation as bsim
 import cupy as cp
 
+def to_np_array(x):
+    if hasattr(x, "get"):
+        return x.get() 
+    else:         
+        return x
 
 class Empty(object):
     pass
@@ -89,11 +94,9 @@ class DummyBeamTim(object):
                         MP_e.x_mp[0 : MP_e.N_mp], MP_e.y_mp[0 : MP_e.N_mp]
                     )
                 else:
-                    Ex_n_beam_GPU, Ey_n_beam_GPU = self.PyPIC_state.gather(
-                        cp.array(MP_e.x_mp[0 : MP_e.N_mp]), cp.array(MP_e.y_mp[0 : MP_e.N_mp])
+                    Ex_n_beam, Ey_n_beam = self.PyPIC_state.gather(
+                        MP_e.x_mp[0 : MP_e.N_mp], MP_e.y_mp[0 : MP_e.N_mp]
                     )
-                    Ex_n_beam = Ex_n_beam_GPU.get(); Ey_n_beam = Ey_n_beam_GPU.get()
-
         else:
             Ex_n_beam = 0.0
             Ey_n_beam = 0.0
@@ -633,9 +636,14 @@ class Ecloud(object):
             if interact_with_EC:
                 # Build MP_system-like object with beam coordinates
                 MP_p = Empty()
-                MP_p.x_mp = slic.x[ix] + self.x_beam_offset
-                MP_p.y_mp = slic.y[ix] + self.y_beam_offset
-                MP_p.N_mp = len(slic.x[ix])
+                if self.flagGPU:
+                    MP_p.x_mp = cp.array(slic.x[ix] + self.x_beam_offset)
+                    MP_p.y_mp = cp.array(slic.y[ix] + self.y_beam_offset)
+                    MP_p.N_mp = len(slic.x[ix])
+                else:
+                    MP_p.x_mp = slic.x[ix] + self.x_beam_offset
+                    MP_p.y_mp = slic.y[ix] + self.y_beam_offset
+                    MP_p.N_mp = len(slic.x[ix])
 
                 ## compute cloud field on beam particles
                 Ex_sc_p, Ey_sc_p = spacech_ele.get_sc_eletric_field(MP_p)
@@ -647,9 +655,9 @@ class Ecloud(object):
                     * self.L_ecloud
                 )
                 if self.enable_kick_x:
-                    slic.xp[ix] += fact_kick * Ex_sc_p
+                    slic.xp[ix] += fact_kick * to_np_array(Ex_sc_p)
                 if self.enable_kick_y:
-                    slic.yp[ix] += fact_kick * Ey_sc_p
+                    slic.yp[ix] += fact_kick * to_np_array(Ey_sc_p)
 
             ## Diagnostics
             MPe_for_save = self.cloudsim.cloud_list[0].MP_e

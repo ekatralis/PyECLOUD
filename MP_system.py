@@ -141,10 +141,22 @@ class MP_system:
             self.N_mp_async_regen = N_mp_async_regen
             self.N_mp_after_async_regen = N_mp_after_async_regen
 
-        self.backend_context = backend_context or build_backend_context(False)
-        self._cpu_backend_context = build_backend_context(False)
-        self._gpu_backend_context = self.backend_context if self.backend_context.use_gpu else build_backend_context(True)
-        self._set_backend_state(self._cpu_backend_context)
+        self.backend_context = backend_context
+        self._set_backend_state(backend_context)
+        if self.backend_context.use_gpu:
+            self.x_mp = cp.asarray(self.x_mp)
+            self.y_mp = cp.asarray(self.y_mp)
+            self.z_mp = cp.asarray(self.z_mp)
+            self.vx_mp = cp.asarray(self.vx_mp)
+            self.vy_mp = cp.asarray(self.vy_mp)
+            self.vz_mp = cp.asarray(self.vz_mp)
+            self.nel_mp = cp.asarray(self.nel_mp)
+            if self.flag_lifetime_hist:
+                self.t_last_impact = cp.asarray(self.t_last_impact)
+        # self.backend_context = backend_context or build_backend_context(False)
+        # self._cpu_backend_context = build_backend_context(False)
+        # self._gpu_backend_context = self.backend_context if self.backend_context.use_gpu else build_backend_context(True)
+        # self._set_backend_state(self._cpu_backend_context)
 
     def _set_backend_state(self, backend_context):
         self.use_gpu = backend_context.use_gpu
@@ -154,42 +166,6 @@ class MP_system:
     def _sum_to_float(self, values):
         total = self.array_backend.sum(values)
         return float(total.item() if hasattr(total, 'item') else total)
-
-    def move_to_gpu(self):
-        if self.use_gpu:
-            return self
-
-        self.x_mp = cp.asarray(self.x_mp)
-        self.y_mp = cp.asarray(self.y_mp)
-        self.z_mp = cp.asarray(self.z_mp)
-        self.vx_mp = cp.asarray(self.vx_mp)
-        self.vy_mp = cp.asarray(self.vy_mp)
-        self.vz_mp = cp.asarray(self.vz_mp)
-        self.nel_mp = cp.asarray(self.nel_mp)
-
-        if self.flag_lifetime_hist:
-            self.t_last_impact = cp.asarray(self.t_last_impact)
-
-        self._set_backend_state(self._gpu_backend_context)
-        return self
-
-    def move_to_cpu(self):
-        if not self.use_gpu:
-            return self
-
-        self.x_mp = cp.asnumpy(self.x_mp)
-        self.y_mp = cp.asnumpy(self.y_mp)
-        self.z_mp = cp.asnumpy(self.z_mp)
-        self.vx_mp = cp.asnumpy(self.vx_mp)
-        self.vy_mp = cp.asnumpy(self.vy_mp)
-        self.vz_mp = cp.asnumpy(self.vz_mp)
-        self.nel_mp = cp.asnumpy(self.nel_mp)
-
-        if self.flag_lifetime_hist:
-            self.t_last_impact = cp.asnumpy(self.t_last_impact)
-
-        self._set_backend_state(self._cpu_backend_context)
-        return self
 
     def clean_small_MPs(self):
 
@@ -572,7 +548,7 @@ class MP_system:
 
             x_temp = (x_max - x_min) * self.random_backend.rand(Nint_new_MP) + x_min
             y_temp = (y_max - y_min) * self.random_backend.rand(Nint_new_MP) + y_min
-
+            print(self.use_gpu)
             flag_keep = ~self.chamb.is_outside(x_temp, y_temp)  # (((x_temp/x_aper)**2 + (y_temp/y_aper)**2)>=1);
             x_temp = x_temp[flag_keep]
             y_temp = y_temp[flag_keep]
@@ -621,21 +597,36 @@ class MP_system:
             dict_MP_init = filename_MPs
 
         Nint_new_MP = int(dict_MP_init['N_mp'])
+        if self.use_gpu:
+            self.x_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['x_mp']))
+            self.y_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['y_mp']))
+            self.z_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['z_mp']))
+            self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['vx_mp']))
+            self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['vy_mp']))
+            self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['vz_mp']))
+            self.nel_mp[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(dict_MP_init['nel_mp']))
 
-        self.x_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['x_mp'])
-        self.y_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['y_mp'])
-        self.z_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['z_mp'])
-        self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['vx_mp'])
-        self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['vy_mp'])
-        self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['vz_mp'])
-        self.nel_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['nel_mp'])
+            if self.flag_lifetime_hist:
+                if 't_last_impact' in list(dict_MP_init.keys()):
+                    self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = cp.asarray(np.squeeze(
+                        dict_MP_init['t_last_impact']))
+                else:
+                    self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = -1
+        else:
+            self.x_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['x_mp'])
+            self.y_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['y_mp'])
+            self.z_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['z_mp'])
+            self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['vx_mp'])
+            self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['vy_mp'])
+            self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['vz_mp'])
+            self.nel_mp[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(dict_MP_init['nel_mp'])
 
-        if self.flag_lifetime_hist:
-            if 't_last_impact' in list(dict_MP_init.keys()):
-                self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(
-                    dict_MP_init['t_last_impact'])
-            else:
-                self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = -1
+            if self.flag_lifetime_hist:
+                if 't_last_impact' in list(dict_MP_init.keys()):
+                    self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = np.squeeze(
+                        dict_MP_init['t_last_impact'])
+                else:
+                    self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = -1
 
         self.N_mp = int(self.N_mp + Nint_new_MP)
 
@@ -655,3 +646,5 @@ class MP_system:
     def init_from_dict(self, dict_MP):
         self.N_mp = 0
         self.add_from_file(dict_MP)
+
+# %%
