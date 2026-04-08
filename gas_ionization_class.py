@@ -50,18 +50,21 @@
 #
 #-End-preamble---------------------------------------------------------
 
-
-from numpy.random import rand
-from numpy.random import randn
-from numpy import *
+import numpy as np
 from scipy.constants import c, k, e
+from .backend_context import build_backend_context
 
 
 class residual_gas_ionization:
 
-    def __init__(self, unif_frac, P_nTorr, sigma_ion_MBarn, Temp_K, chamb, E_init_ion, flag_lifetime_hist = False):
+    def __init__(self, unif_frac, P_nTorr, sigma_ion_MBarn, Temp_K, chamb, E_init_ion,
+                 flag_lifetime_hist = False, backend_context=None, use_gpu=False):
 
         print('Start res. gas ioniz. init.')
+        self.backend_context = backend_context or build_backend_context(use_gpu)
+        self.use_gpu = self.backend_context.use_gpu
+        self.array_backend = self.backend_context.array_backend
+        self.random_backend = self.backend_context.random_backend
         self.unif_frac = unif_frac
         self.P_nTorr = P_nTorr
         self.sigma_ion_MBarn = sigma_ion_MBarn
@@ -81,9 +84,10 @@ class residual_gas_ionization:
     #@profile
     def generate(self, MP_e, lambda_t, Dt, sigmax, sigmay, x_beam_pos=0., y_beam_pos=0.):
 
+        xp = self.array_backend
         mass = MP_e.mass
 
-        v0 = -sqrt(2. * (self.E_init_ion / 3.) * e / mass)
+        v0 = -xp.sqrt(2. * (self.E_init_ion / 3.) * e / mass)
 
         P_Pa = self.P_nTorr * 133.32e-9
         sigma_ion_mq = self.sigma_ion_MBarn * 1e-22
@@ -94,33 +98,33 @@ class residual_gas_ionization:
         DNel = k_ion * lambda_t * Dt
 
         N_new_MP = DNel / MP_e.nel_mp_ref
-        Nint_new_MP = floor(N_new_MP)
+        Nint_new_MP = int(np.floor(N_new_MP))
         rest = N_new_MP - Nint_new_MP
-        Nint_new_MP = int(Nint_new_MP) + int(rand() < rest)
+        Nint_new_MP = int(Nint_new_MP) + int(self.random_backend.rand() < rest)
 
         if Nint_new_MP > 0:
-            unif_flag = (rand(Nint_new_MP) < self.unif_frac)
+            unif_flag = (self.random_backend.rand(Nint_new_MP) < self.unif_frac)
             gauss_flag = ~(unif_flag)
 
-            x_temp = gauss_flag * (sigmax * randn(Nint_new_MP) + x_beam_pos) + self.chamb.x_aper * unif_flag * (2. * (rand(Nint_new_MP) - 0.5))
-            y_temp = gauss_flag * (sigmay * randn(Nint_new_MP) + y_beam_pos) + self.chamb.y_aper * unif_flag * (2. * (rand(Nint_new_MP) - 0.5))
+            x_temp = gauss_flag * (sigmax * self.random_backend.randn(Nint_new_MP) + x_beam_pos) + self.chamb.x_aper * unif_flag * (2. * (self.random_backend.rand(Nint_new_MP) - 0.5))
+            y_temp = gauss_flag * (sigmay * self.random_backend.randn(Nint_new_MP) + y_beam_pos) + self.chamb.y_aper * unif_flag * (2. * (self.random_backend.rand(Nint_new_MP) - 0.5))
 
             flag_np = self.chamb.is_outside(x_temp, y_temp) # (((x_temp/x_aper)**2 + (y_temp/y_aper)**2)>=1)
-            Nout = int(sum(flag_np))
+            Nout = int(self.backend_context.count_nonzero(flag_np))
             while(Nout > 0):
                 unif_flag1 = unif_flag[flag_np]
                 gauss_flag1 = ~(unif_flag1)
-                x_temp[flag_np] = gauss_flag1 * (sigmax * randn(Nout) + x_beam_pos) + self.chamb.x_aper * unif_flag1 * (2 * (rand(Nout) - 0.5))
-                y_temp[flag_np] = gauss_flag1 * (sigmay * randn(Nout) + y_beam_pos) + self.chamb.y_aper * unif_flag1 * (2 * (rand(Nout) - 0.5))
+                x_temp[flag_np] = gauss_flag1 * (sigmax * self.random_backend.randn(Nout) + x_beam_pos) + self.chamb.x_aper * unif_flag1 * (2 * (self.random_backend.rand(Nout) - 0.5))
+                y_temp[flag_np] = gauss_flag1 * (sigmay * self.random_backend.randn(Nout) + y_beam_pos) + self.chamb.y_aper * unif_flag1 * (2 * (self.random_backend.rand(Nout) - 0.5))
                 flag_np = self.chamb.is_outside(x_temp, y_temp)  # (((x_temp/x_aper)**2 + (y_temp/y_aper)**2)>=1)
-                Nout = int(sum(flag_np))
+                Nout = int(self.backend_context.count_nonzero(flag_np))
 
             MP_e.x_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = x_temp # Be careful to the indexing when translating to python
             MP_e.y_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = y_temp
             MP_e.z_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = 0. # randn(Nint_new_MP,1)
-            MP_e.vx_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = v0 * (rand() - 0.5) # if you note a towards down polarization look here
-            MP_e.vy_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
-            MP_e.vz_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
+            MP_e.vx_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5) # if you note a towards down polarization look here
+            MP_e.vy_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
+            MP_e.vz_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
             MP_e.nel_mp[ MP_e.N_mp: MP_e.N_mp + Nint_new_MP] = MP_e.nel_mp_ref
         
             if self.flag_lifetime_hist:

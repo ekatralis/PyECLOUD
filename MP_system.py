@@ -55,6 +55,7 @@ from numpy.random import rand
 from . import hist_for as histf
 from scipy.constants import e, m_e
 import cupy as cp
+from .backend_context import build_backend_context
 
 
 def _to_python_int(value):
@@ -76,7 +77,8 @@ class MP_system:
                  Dx_hist_reg, Nx_reg, Ny_reg, Nvx_reg, Nvy_reg, Nvz_reg, regen_hist_cut, chamb,
                  N_mp_soft_regen=None, N_mp_after_soft_regen=None,
                  N_mp_async_regen=None, N_mp_after_async_regen=None,
-                 charge=-e, mass=m_e, flag_lifetime_hist = False, name=None):
+                 charge=-e, mass=m_e, flag_lifetime_hist = False, name=None,
+                 backend_context=None):
 
         N_mp_max = int(N_mp_max)
         self.x_mp = np.zeros(N_mp_max, float)
@@ -139,8 +141,19 @@ class MP_system:
             self.N_mp_async_regen = N_mp_async_regen
             self.N_mp_after_async_regen = N_mp_after_async_regen
 
-        self.use_gpu = False
-        self.array_backend = np
+        self.backend_context = backend_context or build_backend_context(False)
+        self._cpu_backend_context = build_backend_context(False)
+        self._gpu_backend_context = self.backend_context if self.backend_context.use_gpu else build_backend_context(True)
+        self._set_backend_state(self._cpu_backend_context)
+
+    def _set_backend_state(self, backend_context):
+        self.use_gpu = backend_context.use_gpu
+        self.array_backend = backend_context.array_backend
+        self.random_backend = backend_context.random_backend
+
+    def _sum_to_float(self, values):
+        total = self.array_backend.sum(values)
+        return float(total.item() if hasattr(total, 'item') else total)
 
     def move_to_gpu(self):
         if self.use_gpu:
@@ -157,8 +170,7 @@ class MP_system:
         if self.flag_lifetime_hist:
             self.t_last_impact = cp.asarray(self.t_last_impact)
 
-        self.use_gpu = True
-        self.array_backend = cp
+        self._set_backend_state(self._gpu_backend_context)
         return self
 
     def move_to_cpu(self):
@@ -176,18 +188,17 @@ class MP_system:
         if self.flag_lifetime_hist:
             self.t_last_impact = cp.asnumpy(self.t_last_impact)
 
-        self.use_gpu = False
-        self.array_backend = np
+        self._set_backend_state(self._cpu_backend_context)
         return self
 
     def clean_small_MPs(self):
 
-        print("Cloud %s: Start clean. N_mp=%d Nel=%e"%(self.name, self.N_mp, np.sum(self.nel_mp[0:self.N_mp])))
+        print("Cloud %s: Start clean. N_mp=%d Nel=%e"%(self.name, self.N_mp, self._sum_to_float(self.nel_mp[0:self.N_mp])))
 
         flag_clean = (self.nel_mp < self.nel_mp_cl_th)
         flag_keep = ~(flag_clean)
         flag_keep[self.N_mp:] = False
-        self.N_mp = _to_python_int(np.sum(flag_keep))
+        self.N_mp = _to_python_int(self.array_backend.sum(flag_keep))
 
         self.x_mp[0:self.N_mp] = self.x_mp[flag_keep].copy()
         self.y_mp[0:self.N_mp] = self.y_mp[flag_keep].copy()
@@ -200,9 +211,9 @@ class MP_system:
         self.nel_mp[self.N_mp:] = 0.0
 
         if self.flag_lifetime_hist:
-            self.t_last_impact[0:self.N_mp] = np.array(self.t_last_impact[flag_keep].copy())
+            self.t_last_impact[0:self.N_mp] = self.t_last_impact[flag_keep].copy()
 
-        print("Cloud %s: Done clean. N_mp=%d Nel=%e"%(self.name, self.N_mp, np.sum(self.nel_mp[0:self.N_mp])))
+        print("Cloud %s: Done clean. N_mp=%d Nel=%e"%(self.name, self.N_mp, self._sum_to_float(self.nel_mp[0:self.N_mp])))
 
         if self.N_mp == 0:
             self.set_nel_mp_ref(self.nel_mp_ref_0)
@@ -216,8 +227,9 @@ class MP_system:
     def perform_soft_regeneration(self, target_N_mp):
 
             if self.N_mp > target_N_mp:
-                chrg = np.sum(self.nel_mp)
-                erg = np.sum(0.5 / np.abs(self.charge / self.mass) * self.nel_mp[0:self.N_mp] * (self.vx_mp[0:self.N_mp] * self.vx_mp[0:self.N_mp] + self.vy_mp[0:self.N_mp] * self.vy_mp[0:self.N_mp] + self.vz_mp[0:self.N_mp] * self.vz_mp[0:self.N_mp]))
+                xp = self.array_backend
+                chrg = self._sum_to_float(self.nel_mp)
+                erg = self._sum_to_float(0.5 / xp.abs(self.charge / self.mass) * self.nel_mp[0:self.N_mp] * (self.vx_mp[0:self.N_mp] * self.vx_mp[0:self.N_mp] + self.vy_mp[0:self.N_mp] * self.vy_mp[0:self.N_mp] + self.vz_mp[0:self.N_mp] * self.vz_mp[0:self.N_mp]))
 
                 new_nel_mp_ref = chrg / target_N_mp
                 if new_nel_mp_ref < self.nel_mp_ref_0:
@@ -230,25 +242,25 @@ class MP_system:
 
                 death_prob = float(self.N_mp - target_N_mp) / float(self.N_mp)
 
-                flag_keep = np.array(len(self.x_mp) * [False])
-                flag_keep[:self.N_mp] = (rand(self.N_mp) > death_prob)
-                self.N_mp = _to_python_int(np.sum(flag_keep))
+                flag_keep = xp.zeros(len(self.x_mp), dtype=bool)
+                flag_keep[:self.N_mp] = (self.random_backend.rand(self.N_mp) > death_prob)
+                self.N_mp = _to_python_int(xp.sum(flag_keep))
 
-                self.x_mp[0:self.N_mp] = np.array(self.x_mp[flag_keep].copy())
-                self.y_mp[0:self.N_mp] = np.array(self.y_mp[flag_keep].copy())
-                self.z_mp[0:self.N_mp] = np.array(self.z_mp[flag_keep].copy())
-                self.vx_mp[0:self.N_mp] = np.array(self.vx_mp[flag_keep].copy())
-                self.vy_mp[0:self.N_mp] = np.array(self.vy_mp[flag_keep].copy())
-                self.vz_mp[0:self.N_mp] = np.array(self.vz_mp[flag_keep].copy())
-                self.nel_mp[0:self.N_mp] = np.array(self.nel_mp[flag_keep].copy())
+                self.x_mp[0:self.N_mp] = self.x_mp[flag_keep].copy()
+                self.y_mp[0:self.N_mp] = self.y_mp[flag_keep].copy()
+                self.z_mp[0:self.N_mp] = self.z_mp[flag_keep].copy()
+                self.vx_mp[0:self.N_mp] = self.vx_mp[flag_keep].copy()
+                self.vy_mp[0:self.N_mp] = self.vy_mp[flag_keep].copy()
+                self.vz_mp[0:self.N_mp] = self.vz_mp[flag_keep].copy()
+                self.nel_mp[0:self.N_mp] = self.nel_mp[flag_keep].copy()
 
                 self.nel_mp[self.N_mp:] = 0.0
 
                 if self.flag_lifetime_hist:
-                    self.t_last_impact[0:self.N_mp] = np.array(self.t_last_impact[flag_keep].copy())
+                    self.t_last_impact[0:self.N_mp] = self.t_last_impact[flag_keep].copy()
 
                 chrg_before = chrg
-                chrg_after = np.sum(self.nel_mp)
+                chrg_after = self._sum_to_float(self.nel_mp)
 
                 correct_fact = chrg_before / chrg_after
 
@@ -256,8 +268,8 @@ class MP_system:
 
                 self.nel_mp[0:self.N_mp] = self.nel_mp[0:self.N_mp] * correct_fact
 
-                chrg = np.sum(self.nel_mp)
-                erg = np.sum(0.5 / np.abs(self.charge / self.mass) * self.nel_mp[0:self.N_mp] * (self.vx_mp[0:self.N_mp] * self.vx_mp[0:self.N_mp] + self.vy_mp[0:self.N_mp] * self.vy_mp[0:self.N_mp] + self.vz_mp[0:self.N_mp] * self.vz_mp[0:self.N_mp]))
+                chrg = self._sum_to_float(self.nel_mp)
+                erg = self._sum_to_float(0.5 / xp.abs(self.charge / self.mass) * self.nel_mp[0:self.N_mp] * (self.vx_mp[0:self.N_mp] * self.vx_mp[0:self.N_mp] + self.vy_mp[0:self.N_mp] * self.vy_mp[0:self.N_mp] + self.vz_mp[0:self.N_mp] * self.vz_mp[0:self.N_mp]))
                 print('Cloud %s: Done SOFT regeneration. N_mp=%d Nel_tot=%1.2e En_tot=%1.2e'%(self.name, self.N_mp, chrg, erg))
 
     def check_for_soft_regeneration(self):
@@ -497,38 +509,39 @@ class MP_system:
             if y_min is None:
                 y_min = -self.chamb.y_aper
 
-            v0 = -np.sqrt(2. * (E_init / 3.) * np.abs(self.charge) / self.mass)
+            xp = self.array_backend
+            v0 = -xp.sqrt(2. * (E_init / 3.) * xp.abs(self.charge) / self.mass)
 
             N_new_MP = DNel / self.nel_mp_ref
             Nint_new_MP = int(np.floor(N_new_MP))
             rest = N_new_MP - Nint_new_MP
-            Nint_new_MP = Nint_new_MP + int(rand() < rest)
+            Nint_new_MP = Nint_new_MP + int(self.random_backend.rand() < rest)
 
             if Nint_new_MP > 0:
 
-                x_temp = (x_max - x_min) * rand(Nint_new_MP) + x_min
-                y_temp = (y_max - y_min) * rand(Nint_new_MP) + y_min
+                x_temp = (x_max - x_min) * self.random_backend.rand(Nint_new_MP) + x_min
+                y_temp = (y_max - y_min) * self.random_backend.rand(Nint_new_MP) + y_min
 
                 flag_np = self.chamb.is_outside(x_temp, y_temp)  # (((x_temp/x_aper)**2 + (y_temp/y_aper)**2)>=1);
-                Nout = np.sum(flag_np)
+                Nout = _to_python_int(xp.sum(flag_np))
                 while(Nout > 0):
-                    x_temp[flag_np] = (x_max - x_min) * rand(Nout) + x_min
-                    y_temp[flag_np] = (y_max - y_min) * rand(Nout) + y_min
+                    x_temp[flag_np] = (x_max - x_min) * self.random_backend.rand(Nout) + x_min
+                    y_temp[flag_np] = (y_max - y_min) * self.random_backend.rand(Nout) + y_min
                     flag_np = self.chamb.is_outside(x_temp, y_temp)  # (((x_temp/x_aper)**2 + (y_temp/y_aper)**2)>=1);
-                    Nout = np.sum(flag_np)
+                    Nout = _to_python_int(xp.sum(flag_np))
 
                 self.x_mp[self.N_mp:self.N_mp + Nint_new_MP] = x_temp
                 #Be careful to the indexing when translating to python
                 self.y_mp[self.N_mp:self.N_mp + Nint_new_MP] = y_temp
                 self.z_mp[self.N_mp:self.N_mp + Nint_new_MP] = 0.
                 #randn(Nint_new_MP,1)
-                self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
+                self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
                 #if you note a towards down polarization look here
-                self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
-                self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
+                self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
+                self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
                 self.nel_mp[self.N_mp:self.N_mp + Nint_new_MP] = self.nel_mp_ref
 
-                self.N_mp = int(self.N_mp + Nint_new_MP)
+                self.N_mp = _to_python_int(self.N_mp + Nint_new_MP)
 
                 if self.flag_lifetime_hist:
                     self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = -1
@@ -547,17 +560,18 @@ class MP_system:
         if y_min is None:
             y_min = -self.chamb.y_aper
 
-        v0 = -np.sqrt(2. * (E_init / 3.) * np.abs(self.charge) / self.mass)
+        xp = self.array_backend
+        v0 = -xp.sqrt(2. * (E_init / 3.) * xp.abs(self.charge) / self.mass)
 
         N_new_MP = n_ele * (x_max - x_min) * (y_max - y_min) / self.nel_mp_ref
         Nint_new_MP = int(np.floor(N_new_MP))
         rest = N_new_MP - Nint_new_MP
-        Nint_new_MP = Nint_new_MP + int(rand() < rest)
+        Nint_new_MP = Nint_new_MP + int(self.random_backend.rand() < rest)
 
         if Nint_new_MP > 0:
 
-            x_temp = (x_max - x_min) * rand(Nint_new_MP) + x_min
-            y_temp = (y_max - y_min) * rand(Nint_new_MP) + y_min
+            x_temp = (x_max - x_min) * self.random_backend.rand(Nint_new_MP) + x_min
+            y_temp = (y_max - y_min) * self.random_backend.rand(Nint_new_MP) + y_min
 
             flag_keep = ~self.chamb.is_outside(x_temp, y_temp)  # (((x_temp/x_aper)**2 + (y_temp/y_aper)**2)>=1);
             x_temp = x_temp[flag_keep]
@@ -569,16 +583,16 @@ class MP_system:
             self.y_mp[self.N_mp:self.N_mp + Nint_new_MP] = y_temp
             self.z_mp[self.N_mp:self.N_mp + Nint_new_MP] = 0.
             #randn(Nint_new_MP,1)
-            self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
+            self.vx_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
             #if you note a towards down polarization look here
-            self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
-            self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (rand() - 0.5)
+            self.vy_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
+            self.vz_mp[self.N_mp:self.N_mp + Nint_new_MP] = v0 * (self.random_backend.rand() - 0.5)
             self.nel_mp[self.N_mp:self.N_mp + Nint_new_MP] = self.nel_mp_ref
 
         if self.flag_lifetime_hist:
             self.t_last_impact[self.N_mp:self.N_mp + Nint_new_MP] = -1
 
-        self.N_mp = int(self.N_mp + Nint_new_MP)
+        self.N_mp = _to_python_int(self.N_mp + Nint_new_MP)
 
     def get_positions(self):
             return MP_positions(self.x_mp[:self.N_mp], self.y_mp[:self.N_mp], self.z_mp[:self.N_mp])

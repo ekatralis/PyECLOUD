@@ -91,6 +91,7 @@ from . import parse_cloud_file as pcf
 from . import input_parameters_format_specification as inp_spec
 from . import cloud_manager as cman
 from . import cross_ionization as cion
+from .backend_context import build_backend_context
 
 def read_parameter_files(pyecl_input_folder='./', skip_beam_files=False):
     simulation_param_file = 'simulation_parameters.input'
@@ -143,6 +144,8 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
 
     # Config object
     cc = mlm.obj_from_dict(config_dict)
+    cc.use_gpu = bool(int(os.environ.get('PYECL_USE_GPU', cc.use_gpu)))
+    backend_context = build_backend_context(cc.use_gpu)
 
     # Init beam and possibly second beams
     if not skip_beam:
@@ -313,7 +316,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                              N_mp_soft_regen=thiscloud.N_mp_soft_regen, N_mp_after_soft_regen=thiscloud.N_mp_after_soft_regen,
                              N_mp_async_regen=thiscloud.N_mp_async_regen, N_mp_after_async_regen=thiscloud.N_mp_after_async_regen,
                              charge=thiscloud.cloud_charge, mass=thiscloud.cloud_mass, flag_lifetime_hist = thiscloud.flag_lifetime_hist,
-                             name=thiscloud.cloud_name)
+                             name=thiscloud.cloud_name, backend_context=backend_context)
 
         # Init secondary emission object
         if thiscloud.switch_model == 'perfect_absorber':
@@ -339,7 +342,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                     switch_no_increase_energy=thiscloud.switch_no_increase_energy,
                     thresh_low_energy=thiscloud.thresh_low_energy,
                     secondary_angle_distribution=thiscloud.secondary_angle_distribution,
-                    use_gpu=cc.use_gpu,
+                    backend_context=backend_context,
                     **kwargs_secem)
             elif thiscloud.switch_model in (1, 'ACC_LOW'):
                 sey_mod = SEY_model_acc_low_ene(thiscloud.Emax, thiscloud.del_max, thiscloud.R0,
@@ -420,12 +423,13 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
             thiscloud.Dx_hist, thiscloud.scrub_en_th, cc.Nbin_En_hist, cc.En_hist_max,
             cc.Nbin_lifetime_hist, cc.lifetime_hist_max, cc.flag_lifetime_hist,
             flag_seg=flag_seg, flag_En_hist_seg=thiscloud.flag_En_hist_seg,
-            cos_angle_width=cc.cos_angle_width)
+            cos_angle_width=cc.cos_angle_width, backend_context=backend_context)
 
         # Init gas ionization and photoemission
         if thiscloud.gas_ion_flag == 1:
             resgasion = gic.residual_gas_ionization(thiscloud.unif_frac, thiscloud.P_nTorr, thiscloud.sigma_ion_MBarn,
-                                                    thiscloud.Temp_K, chamb, thiscloud.E_init_ion, thiscloud.flag_lifetime_hist)
+                                                    thiscloud.Temp_K, chamb, thiscloud.E_init_ion, thiscloud.flag_lifetime_hist,
+                                                    backend_context=backend_context)
         else:
             resgasion = None
 
@@ -433,12 +437,12 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
             phemiss = gpc.photoemission(thiscloud.inv_CDF_refl_photoem_file, thiscloud.k_pe_st, thiscloud.refl_frac, thiscloud.e_pe_sigma, thiscloud.e_pe_max,
                                         thiscloud.alimit, thiscloud.x0_refl, thiscloud.y0_refl, thiscloud.out_radius, chamb, thiscloud.phem_resc_fac,
                                         thiscloud.energy_distribution, thiscloud.photoelectron_angle_distribution, beamtim, thiscloud.flag_continuous_emission,
-                                        use_gpu=cc.use_gpu)
+                                        backend_context=backend_context)
         elif thiscloud.photoem_flag in (2, 'from_file'):
             phemiss = gpc.photoemission_from_file(thiscloud.inv_CDF_all_photoem_file, chamb, thiscloud.phem_resc_fac, thiscloud.energy_distribution,
                                                   thiscloud.e_pe_sigma, thiscloud.e_pe_max, thiscloud.k_pe_st, thiscloud.out_radius,
                                                   thiscloud.photoelectron_angle_distribution, beamtim, thiscloud.flag_continuous_emission,
-                                                  use_gpu=cc.use_gpu)
+                                                  backend_context=backend_context)
         elif thiscloud.photoem_flag in (3, 'per_segment'):
 
             if os.path.isfile(pyecl_input_folder + '/' + thiscloud.filename_chm_photoem):
@@ -453,7 +457,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
                 raise gipfi.PyECLOUD_ChamberException('Chambers for secondary emission and photoemission do not have the same shape!')
             phemiss = gpc.photoemission_per_segment(chamb_phemiss, thiscloud.energy_distribution, thiscloud.e_pe_sigma, thiscloud.e_pe_max, thiscloud.k_pe_st,
                                                     thiscloud.photoelectron_angle_distribution, beamtim, thiscloud.flag_continuous_emission,
-                                                    use_gpu=cc.use_gpu)
+                                                    backend_context=backend_context)
         else:
             phemiss = None
 

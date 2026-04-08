@@ -65,9 +65,9 @@ class PyECLOUD_PhotoemissionException(ValueError):
 
 
 class photoemission_base(object):
-    def _init_backend(self, use_gpu):
-        self.use_gpu = bool(use_gpu)
-        self.backend_context = build_backend_context(self.use_gpu)
+    def _init_backend(self, use_gpu=False, backend_context=None):
+        self.backend_context = backend_context or build_backend_context(use_gpu)
+        self.use_gpu = self.backend_context.use_gpu
         self.array_backend = self.backend_context.array_backend
         self.random_backend = self.backend_context.random_backend
 
@@ -108,10 +108,10 @@ class photoemission(photoemission_base):
 
     def __init__(self, inv_CDF_refl_photoem_file, k_pe_st, refl_frac, e_pe_sigma, e_pe_max, alimit, x0_refl,
                  y0_refl, out_radius, chamb, resc_fac, energy_distribution, photoelectron_angle_distribution,
-                 beamtim=None, flag_continuous_emission=False, use_gpu=False):
+                 beamtim=None, flag_continuous_emission=False, use_gpu=False, backend_context=None):
 
         print('Start photoemission init.')
-        self._init_backend(use_gpu)
+        self._init_backend(use_gpu, backend_context)
 
         if not chamb.is_convex():
             print('Warning! This photoemission module is not suited for a non-convex chamber!')
@@ -226,8 +226,8 @@ class photoemission_from_file(photoemission_base):
 
     def __init__(self, inv_CDF_all_photoem_file, chamb, resc_fac, energy_distribution, e_pe_sigma, e_pe_max,
                  k_pe_st, out_radius, photoelectron_angle_distribution, beamtim=None,
-                 flag_continuous_emission=False, use_gpu=False):
-        self._init_backend(use_gpu)
+                 flag_continuous_emission=False, use_gpu=False, backend_context=None):
+        self._init_backend(use_gpu, backend_context)
         if isinstance(inv_CDF_all_photoem_file, str):
             print('Start photoemission init from file %s.' % inv_CDF_all_photoem_file)
         elif isinstance(inv_CDF_all_photoem_file, dict):
@@ -286,9 +286,9 @@ class photoemission_per_segment(photoemission_base):
 
     def __init__(self, chamb, energy_distribution, e_pe_sigma, e_pe_max, k_pe_st,
                  photoelectron_angle_distribution, beamtim=None, flag_continuous_emission=False,
-                 use_gpu=False):
+                 use_gpu=False, backend_context=None):
         print('Start photoemission per segment init')
-        self._init_backend(use_gpu)
+        self._init_backend(use_gpu, backend_context)
         self.k_pe_st = k_pe_st
         self.chamb = chamb
         self.flag_continuous_emission = flag_continuous_emission

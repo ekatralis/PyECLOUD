@@ -58,6 +58,7 @@ from . import seg_impact_cupy as segicu
 from scipy.constants import e as qe
 from line_profiler import profile
 import cupy as cp
+from .backend_context import build_backend_context
 
 class impact_management(object):
     def __init__(
@@ -66,7 +67,8 @@ class impact_management(object):
             En_hist_max, Nbin_lifetime_hist=None,
             lifetime_hist_max=None, flag_lifetime_hist=False,
             flag_seg=False, flag_En_hist_seg=False,
-            cos_angle_width=0.05, flag_cos_angle_hist=True):
+            cos_angle_width=0.05, flag_cos_angle_hist=True,
+            backend_context=None):
 
         print('Start impact man. init.')
 
@@ -82,8 +84,9 @@ class impact_management(object):
         self.En_hist_max = En_hist_max
         self.flag_seg = flag_seg
         self.flag_En_hist_seg = flag_En_hist_seg
-        self.use_gpu = getattr(chamb, 'use_gpu', False)
-        self.array_backend = cp if self.use_gpu else np
+        self.backend_context = backend_context or build_backend_context(getattr(chamb, 'use_gpu', False))
+        self.use_gpu = self.backend_context.use_gpu
+        self.array_backend = self.backend_context.array_backend
 
         xg_hist = np.arange(0, chamb.x_aper + 2. * Dx_hist, Dx_hist, float)
         xgr_hist = xg_hist[1:]

@@ -95,10 +95,10 @@ class SEY_model_ECLOUD(object):
         E_th=None, sigmafit=None, mufit=None,
         switch_no_increase_energy=0, thresh_low_energy=None, secondary_angle_distribution=None,
         E0=150., s=1.35, flag_costheta_delta_scale=True, flag_costheta_Emax_shift=True,
-        use_gpu=False
+        use_gpu=False, backend_context=None
     ):
-        self.use_gpu = bool(use_gpu)
-        self.backend_context = build_backend_context(self.use_gpu)
+        self.backend_context = backend_context or build_backend_context(use_gpu)
+        self.use_gpu = self.backend_context.use_gpu
         self.array_backend = self.backend_context.array_backend
         self.random_backend = self.backend_context.random_backend
 
