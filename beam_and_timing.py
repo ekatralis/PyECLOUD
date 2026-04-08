@@ -94,11 +94,12 @@ class beam_and_timing:
                  Nx=None, Ny=None, nimag=None,
                  progress_mapgen_file=None, use_gpu=False):
 
-        if chamb.is_outside(np.array([x_beam_pos]), np.array([y_beam_pos])):
-            raise ValueError('The beam is outside the chamber!')
-
         self.use_gpu = use_gpu
         self.array_backend = cp if use_gpu else np
+        if chamb.is_outside(self.array_backend.array([x_beam_pos]), self.array_backend.array([y_beam_pos])):
+            raise ValueError('The beam is outside the chamber!')
+
+        
 
         flag_unif_Dt = True
 

@@ -63,7 +63,11 @@ from line_profiler import profile
 
 import cupy as cp
 
-
+def force_numpy(arr):
+    if hasattr(arr, 'get'):
+        return arr.get()
+    else:
+        return arr
 
 class PyECLOUD_ChamberException(ValueError):
     pass
@@ -190,19 +194,19 @@ class polyg_cham_geom_object(object):
 
     @profile
     def is_outside(self, x_mp, y_mp):
-        if isinstance(x_mp, cp.ndarray) or isinstance(y_mp, cp.ndarray):
+        if self.use_gpu:
             return gipcu.is_outside_convex(
                 x_mp, y_mp, self.Vx, self.Vy,
                 self.cx, self.cy, self.N_edg)
-
-        return self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
+        else:
+            return self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
     # @profile
-    def impact_point_and_normal(self, x_in, y_in, z_in, x_out, y_out, z_out, resc_fac=0.99, flag_robust=True):
+    def impact_point_and_normal(self, x_in, y_in, z_in, x_out, y_out, z_out, resc_fac=0.99, flag_robust=True, force_cpu=False):
 
         N_impacts = len(x_in)
         self.N_mp_impact = self.N_mp_impact + N_impacts
 
-        use_gpu = isinstance(x_in, cp.ndarray) or isinstance(y_in, cp.ndarray)
+        use_gpu = self.use_gpu and not force_cpu
         xp = cp if use_gpu else np
 
         if use_gpu:
@@ -210,9 +214,14 @@ class polyg_cham_geom_object(object):
                 x_in, y_in, z_in, x_out, y_out, z_out,
                 self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
         else:
-            x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(
-                x_in, y_in, z_in, x_out, y_out, z_out,
-                self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+            if not force_cpu:
+                x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(
+                    x_in, y_in, z_in, x_out, y_out, z_out,
+                    self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+            else:
+                x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(
+                    x_in, y_in, z_in, x_out, y_out, z_out,
+                    force_numpy(self.Vx), force_numpy(self.Vy), force_numpy(self.Nx), force_numpy(self.Ny), force_numpy(self.N_edg), resc_fac)
 
         mask_found = i_found >= 0
         n_found = int(xp.count_nonzero(mask_found))
