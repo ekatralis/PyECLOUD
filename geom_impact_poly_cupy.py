@@ -196,32 +196,118 @@ def impact_point_and_normal(
     return x_int, y_int, z_int, Nx_int, Ny_int, i_found
 
 
-def is_outside_convex(x_mp, y_mp, Vx, Vy, cx, cy):
+# CUDA C kernel
+_is_outside_convex_src = r'''
+extern "C" __global__
+void is_outside_convex_kernel(
+    const double* __restrict__ x_mp,
+    const double* __restrict__ y_mp,
+    const int N_mp,
+    const double* __restrict__ Vx,
+    const double* __restrict__ Vy,
+    const int N_edg,         // number of edges; Vx/Vy must have N_edg+1 entries (last==first)
+    const double cx,
+    const double cy,
+    unsigned char* __restrict__ out_mask  // 0 = inside, 1 = outside
+){
+    // grid-stride loop for arbitrary N_mp
+    for (int idx = blockDim.x * blockIdx.x + threadIdx.x;
+         idx < N_mp;
+         idx += blockDim.x * gridDim.x)
+    {
+        const double x = x_mp[idx];
+        const double y = y_mp[idx];
+
+        // Elliptical early-inclusion test (same as original)
+        int inside = (((x/cx)*(x/cx) + (y/cy)*(y/cy)) <= 1.0) ? 1 : 0;
+
+        if (!inside) {
+            inside = 1;
+            int ii = 0;
+            while (inside == 1 && ii < N_edg) {
+                const double vx0 = Vx[ii];
+                const double vy0 = Vy[ii];
+                const double vx1 = Vx[ii+1];
+                const double vy1 = Vy[ii+1];
+
+                // Cross product > 0 means point is left of edge (for CCW polygon)
+                const double cross =
+                    ( (y - vy0) * (vx1 - vx0) ) - ( (x - vx0) * (vy1 - vy0) );
+                inside = (cross > 0.0) ? 1 : 0;
+                ++ii;
+            }
+        }
+
+        out_mask[idx] = (unsigned char)(!inside); // 1 = outside, 0 = inside
+    }
+}
+''';
+
+_is_outside_convex_kernel = cp.RawKernel(
+    _is_outside_convex_src, "is_outside_convex_kernel"
+)
+
+# @profile
+def is_outside_convex(x_mp, y_mp, Vx, Vy, cx, cy, N_edg=None, *,
+                          threads_per_block=256, stream=None):
     """
-    Vectorized GPU implementation of convex polygon point-outside test using CuPy.
+    GPU version of is_outside_convex.
+    Parameters
+    ----------
+    x_mp, y_mp : array_like (N,), float64
+        Query point coordinates.
+    Vx, Vy     : array_like (M,), float64
+        Polygon vertices; must have length N_edg+1 with last vertex==first.
+    cx, cy     : float
+        Ellipse radii used for the early-inclusion test.
+    N_edg      : int, optional
+        Number of edges (defaults to len(Vx)-1).
+    Returns
+    -------
+    out : cupy.ndarray (N,), bool
+        True for points outside; False for inside.
     """
-    x_mp = cp.asarray(x_mp)
-    y_mp = cp.asarray(y_mp)
-    Vx = cp.asarray(Vx)
-    Vy = cp.asarray(Vy)
+    # Move data to device in expected dtypes
+    # x_d  = cp.asarray(x_mp, dtype=cp.float64)
+    # y_d  = cp.asarray(y_mp, dtype=cp.float64)
+    # Vx_d = cp.asarray(Vx,   dtype=cp.float64)
+    # Vy_d = cp.asarray(Vy,   dtype=cp.float64)
+    x_d = x_mp
+    y_d = y_mp
+    Vx_d = Vx
+    Vy_d = Vy
 
-    is_inside_ellipse = (x_mp / cx) ** 2 + (y_mp / cy) ** 2 <= 1.0
+    if N_edg is None:
+        N_edg = int(Vx_d.size) - 1
+    else:
+        N_edg = int(N_edg)
 
-    Vx0 = Vx[:-1]
-    Vy0 = Vy[:-1]
-    Vx1 = Vx[1:]
-    Vy1 = Vy[1:]
+    if Vx_d.size != Vy_d.size:
+        raise ValueError("Vx and Vy must have the same length.")
+    if Vx_d.size < 2 or N_edg + 1 > Vx_d.size:
+        raise ValueError("Vx/Vy must have at least N_edg+1 vertices (with last==first).")
 
-    edge_dx = Vx1 - Vx0
-    edge_dy = Vy1 - Vy0
+    N_mp = int(x_d.size)
+    if y_d.size != N_mp:
+        raise ValueError("x_mp and y_mp must have the same length.")
 
-    px = x_mp[:, None]
-    py = y_mp[:, None]
+    out_u8 = cp.empty(N_mp, dtype=cp.uint8)
 
-    dx = px - Vx0
-    dy = py - Vy0
+    blocks = (N_mp + threads_per_block - 1) // threads_per_block
+    # a modest cap to avoid excessive empty blocks on tiny inputs
+    blocks = max(1, min(blocks, 65535))
 
-    cross = dy * edge_dx - dx * edge_dy
-    is_inside_poly = cp.all(cross > 0.0, axis=1)
+    args = (
+        x_d, y_d, np.int32(N_mp),
+        Vx_d, Vy_d, np.int32(N_edg),
+        np.float64(cx), np.float64(cy),
+        out_u8,
+    )
 
-    return ~(is_inside_poly | is_inside_ellipse)
+    if stream is None:
+        _is_outside_convex_kernel((blocks,), (threads_per_block,), args)
+    else:
+        with stream:
+            _is_outside_convex_kernel((blocks,), (threads_per_block,), args, stream=stream)
+
+    return out_u8.view(cp.bool_)  # boolean mask: True = outside, False = inside
