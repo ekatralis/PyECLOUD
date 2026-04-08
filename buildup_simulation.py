@@ -73,6 +73,10 @@ class BuildupSimulation(object):
         **kwargs
     ):
 
+        if kwargs.get("use_gpu", False) and not skip_pyeclsaver:
+            skip_pyeclsaver = True
+            print("GPU mode: skipping pyecloud_saver for now to keep the runtime device-resident.")
+
         print("PyECLOUD Version 8.7.1")
         (
             beamtim,
@@ -225,7 +229,7 @@ class BuildupSimulation(object):
         )
 
         ## Saving output
-        # self._save_output_data(beamtim)
+        # self._save_output_data(beamtim) # Temporary for testing
 
         ## Cleaning and regeneration
         self._MP_cleaning_and_regenerations(beamtim, skip_MP_cleaning, skip_MP_regen)

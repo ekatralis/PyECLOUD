@@ -52,7 +52,6 @@
 
 
 
-from numpy import sum, arctan2, sin, cos
 import scipy.io as sio
 import numpy as np
 import numpy.random as random
@@ -75,7 +74,7 @@ class polyg_cham_geom_object(object):
     chamb_type = 'polyg'
 
     def __init__(self, filename_chm, flag_non_unif_sey, flag_verbose_file=False, flag_verbose_stdout=False,
-                 flag_assume_convex=True):
+                 flag_assume_convex=True, use_gpu=False):
 
         print('Polygonal chamber - cython implementation')
 
@@ -151,6 +150,8 @@ class polyg_cham_geom_object(object):
         self.flag_verbose_file = flag_verbose_file
 
         self.flag_assume_convex = flag_assume_convex
+        self.use_gpu = bool(use_gpu)
+        self.array_backend = np
 
         if self.flag_verbose_file:
             fbckt = open('bcktr_errors.txt', 'w')
@@ -167,15 +168,31 @@ class polyg_cham_geom_object(object):
             self.cythonisoutside = gipc.is_outside_nonconvex
             print('No assumption on the convexity of the polygon')
 
+        if self.use_gpu:
+            if not self.flag_assume_convex:
+                raise PyECLOUD_ChamberException(
+                    'GPU polygon chamber support currently requires flag_assume_convex = True')
+            self.array_backend = cp
+            self.Vx = cp.asarray(self.Vx)
+            self.Vy = cp.asarray(self.Vy)
+            self.Nx = cp.asarray(self.Nx)
+            self.Ny = cp.asarray(self.Ny)
+            self.L_edg = cp.asarray(self.L_edg)
+            if flag_non_unif_sey == 1:
+                self.del_max_segments = cp.asarray(self.del_max_segments)
+                self.R0_segments = cp.asarray(self.R0_segments)
+                self.Emax_segments = cp.asarray(self.Emax_segments)
+                if hasattr(self, 'flag_charging'):
+                    self.flag_charging = cp.asarray(self.flag_charging)
+                    self.Q_max_segments = cp.asarray(self.Q_max_segments)
+                    self.EQ_segments = cp.asarray(self.EQ_segments)
+                    self.tau_segments = cp.asarray(self.tau_segments)
+
     @profile
     def is_outside(self, x_mp, y_mp):
         if isinstance(x_mp, cp.ndarray) or isinstance(y_mp, cp.ndarray):
-            x_mp_gpu = cp.asarray(x_mp)
-            y_mp_gpu = cp.asarray(y_mp)
-            Vx_gpu = cp.asarray(self.Vx)
-            Vy_gpu = cp.asarray(self.Vy)
             return gipcu.is_outside_convex(
-                x_mp_gpu, y_mp_gpu, Vx_gpu, Vy_gpu,
+                x_mp, y_mp, self.Vx, self.Vy,
                 self.cx, self.cy, self.N_edg)
 
         return self.cythonisoutside(x_mp, y_mp, self.Vx, self.Vy, self.cx, self.cy, self.N_edg)
@@ -185,47 +202,32 @@ class polyg_cham_geom_object(object):
         N_impacts = len(x_in)
         self.N_mp_impact = self.N_mp_impact + N_impacts
 
-        x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(x_in, y_in, z_in, x_out, y_out, z_out,
-                                                                                    self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+        use_gpu = isinstance(x_in, cp.ndarray) or isinstance(y_in, cp.ndarray)
+        xp = cp if use_gpu else np
 
-        # print(x_in, y_in, z_in, x_out, y_out, z_out,self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
-        # print(x_int,y_int,z_int,Nx_int,Ny_int,i_found)
-        # print(self.N_edg)
-        #CUPY--------------------------
-        # cu_x_in = cp.array(x_in)
-        # cu_y_in = cp.array(y_in)
-        # cu_z_in = cp.array(z_in)
-        # cu_x_out = cp.array(x_out)
-        # cu_y_out = cp.array(y_out)
-        # cu_z_out = cp.array(z_out)
-        # cu_Vx = cp.array(self.Vx)
-        # cu_Vy = cp.array(self.Vy)
-        # cu_Nx = cp.array(self.Nx)
-        # cu_Ny = cp.array(self.Ny)
-        # cu_resc_fac = cp.array(resc_fac)
-        # cu_x_int, cu_y_int, cu_z_int, cu_Nx_int, cu_Ny_int, cu_i_found = gipcu.impact_point_and_normal(cu_x_in, cu_y_in, cu_z_in, cu_x_out, cu_y_out, cu_z_out,
-        #                                                                             cu_Vx, cu_Vy, cu_Nx, cu_Ny, cu_resc_fac)
-        # nar = lambda x: cp.asnumpy(x)
-        # np.testing.assert_allclose(nar(cu_x_int),x_int)
-        # np.testing.assert_allclose(nar(cu_y_int),y_int)
-        # np.testing.assert_allclose(nar(cu_z_int),z_int)
-        # np.testing.assert_allclose(nar(cu_Nx_int),Nx_int)
-        # np.testing.assert_allclose(nar(cu_Ny_int),Ny_int)
-        # np.testing.assert_allclose(nar(cu_i_found),i_found)
+        if use_gpu:
+            x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipcu.impact_point_and_normal(
+                x_in, y_in, z_in, x_out, y_out, z_out,
+                self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
+        else:
+            x_int, y_int, z_int, Nx_int, Ny_int, i_found = gipc.impact_point_and_normal(
+                x_in, y_in, z_in, x_out, y_out, z_out,
+                self.Vx, self.Vy, self.Nx, self.Ny, self.N_edg, resc_fac)
 
         mask_found = i_found >= 0
+        n_found = int(xp.count_nonzero(mask_found))
 
-        if sum(mask_found) < N_impacts:
+        if n_found < N_impacts:
             mask_not_found = ~mask_found
 
             x_int[mask_not_found] = x_in[mask_not_found]
             y_int[mask_not_found] = y_in[mask_not_found]
 
             #compute some kind of normal ....
-            par_cross = arctan2(self.cx * y_in[mask_not_found], self.cy * x_int[mask_not_found])
+            par_cross = xp.arctan2(self.cx * y_in[mask_not_found], self.cy * x_int[mask_not_found])
 
-            Dx = -self.cx * sin(par_cross)
-            Dy = self.cy * cos(par_cross)
+            Dx = -self.cx * xp.sin(par_cross)
+            Dy = self.cy * xp.cos(par_cross)
 
             Nx_corr = -Dy
             Ny_corr = Dx
@@ -246,6 +248,11 @@ class polyg_cham_geom_object(object):
             self.N_mp_corrected = self.N_mp_corrected + N_errors
 
             if self.flag_verbose_stdout:
+                if use_gpu:
+                    x_in_error = cp.asnumpy(x_in_error)
+                    y_in_error = cp.asnumpy(y_in_error)
+                    x_out_error = cp.asnumpy(x_out_error)
+                    y_out_error = cp.asnumpy(y_out_error)
                 print('Reporting backtrack error of kind 1: no impact found')
                 print('x_in, y_in, x_out, y_out')
                 for i_err in range(N_errors):
@@ -254,6 +261,11 @@ class polyg_cham_geom_object(object):
                 print('End reporting backtrack error of kind 1')
 
             if self.flag_verbose_file:
+                if use_gpu:
+                    x_in_error = cp.asnumpy(x_in_error)
+                    y_in_error = cp.asnumpy(y_in_error)
+                    x_out_error = cp.asnumpy(x_out_error)
+                    y_out_error = cp.asnumpy(y_out_error)
                 with open('bcktr_errors.txt', 'a') as fbckt:
                     for i_err in range(N_errors):
                         lcurr = '%.10e,%.10e,%.10e,%.10e' % (x_in_error[i_err], y_in_error[i_err], x_out_error[i_err], y_out_error[i_err])
@@ -261,8 +273,9 @@ class polyg_cham_geom_object(object):
 
         if flag_robust:
             flag_impact = self.is_outside(x_int, y_int)
-            if flag_impact.any():
-                self.N_mp_corrected = self.N_mp_corrected + sum(flag_impact)
+            n_outside = int(xp.count_nonzero(flag_impact))
+            if n_outside > 0:
+                self.N_mp_corrected = self.N_mp_corrected + n_outside
                 x_int[flag_impact] = x_in[flag_impact]
                 y_int[flag_impact] = y_in[flag_impact]
                 x_in_error = x_in[flag_impact]
@@ -272,6 +285,11 @@ class polyg_cham_geom_object(object):
                 N_errors = len(x_in_error)
 
                 if self.flag_verbose_stdout:
+                    if use_gpu:
+                        x_in_error = cp.asnumpy(x_in_error)
+                        y_in_error = cp.asnumpy(y_in_error)
+                        x_out_error = cp.asnumpy(x_out_error)
+                        y_out_error = cp.asnumpy(y_out_error)
                     print('Reporting backtrack error of kind 2: outside after backtracking')
                     print('x_in, y_in, x_out, y_out')
                     for i_err in range(N_errors):
@@ -280,13 +298,19 @@ class polyg_cham_geom_object(object):
                     print('End reporting backtrack error of kind 2')
 
                 if self.flag_verbose_file:
+                    if use_gpu:
+                        x_in_error = cp.asnumpy(x_in_error)
+                        y_in_error = cp.asnumpy(y_in_error)
+                        x_out_error = cp.asnumpy(x_out_error)
+                        y_out_error = cp.asnumpy(y_out_error)
                     with open('bcktr_errors.txt', 'a') as fbckt:
                         for i_err in range(N_errors):
                             lcurr = '%.10e,%.10e,%.10e,%.10e' % (x_in_error[i_err], y_in_error[i_err], x_out_error[i_err], y_out_error[i_err])
                             fbckt.write('2,' + lcurr + '\n')
 
             flag_impact = self.is_outside(x_int, y_int)
-            if sum(flag_impact) > 0:
+            n_outside = int(xp.count_nonzero(flag_impact))
+            if n_outside > 0:
                 #~ import pylab as pl
                 #~ pl.close('all')
                 #~ pl.plot(self.Vx, self.Vy)
@@ -305,6 +329,11 @@ class polyg_cham_geom_object(object):
                 N_errors = len(x_in_error)
 
                 if self.flag_verbose_stdout:
+                    if use_gpu:
+                        x_in_error = cp.asnumpy(x_in_error)
+                        y_in_error = cp.asnumpy(y_in_error)
+                        x_out_error = cp.asnumpy(x_out_error)
+                        y_out_error = cp.asnumpy(y_out_error)
                     print('Reporting backtrack error of kind 3: outside after correction')
                     print('x_in, y_in, x_out, y_out')
                     for i_err in range(N_errors):
@@ -313,6 +342,11 @@ class polyg_cham_geom_object(object):
                     print('End reporting backtrack error of kind 3')
 
                 if self.flag_verbose_file:
+                    if use_gpu:
+                        x_in_error = cp.asnumpy(x_in_error)
+                        y_in_error = cp.asnumpy(y_in_error)
+                        x_out_error = cp.asnumpy(x_out_error)
+                        y_out_error = cp.asnumpy(y_out_error)
                     with open('bcktr_errors.txt', 'a') as fbckt:
                         for i_err in range(N_errors):
                             lcurr = '%.10e,%.10e,%.10e,%.10e' % (x_in_error[i_err], y_in_error[i_err], x_out_error[i_err], y_out_error[i_err])
@@ -516,4 +550,3 @@ class polyg_cham_photoemission(polyg_cham_geom_object):
             x_new_mp[flag_outside], y_new_mp[flag_outside] = self._get_photoelectron_position_segment(n_mp_outside, x_new_mp[flag_outside], y_new_mp[flag_outside], i_seg)
 
         return x_new_mp, y_new_mp
-

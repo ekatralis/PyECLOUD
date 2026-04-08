@@ -838,11 +838,9 @@ __global__ void compute_hist_kernel_opt(
 
 mod = cp.RawModule(
     code=cuda_src_opt,
-    backend='nvcc',
+    backend='nvrtc',
     options=(
-        "-O3",
         "--std=c++14",
-        "-Xptxas=-O3,-dlcm=ca",   # optional: cache hint to ptxas
     ),
 )
 kernel_opt = mod.get_function("compute_hist_kernel_opt")

@@ -184,6 +184,7 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
         'flag_verbose_file': cc.flag_verbose_file,
         'flag_verbose_stdout': cc.flag_verbose_stdout,
         'flag_assume_convex': cc.flag_assume_convex,
+        'use_gpu': cc.use_gpu,
     }
 
     if cc.chamb_type == 'ellip':

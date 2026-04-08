@@ -52,6 +52,7 @@
 
 import numpy as np
 from . import hist_for as histf
+from . import cupy_hist as histcu
 from . import seg_impact as segi
 from . import seg_impact_cupy as segicu
 from scipy.constants import e as qe
@@ -81,6 +82,8 @@ class impact_management(object):
         self.En_hist_max = En_hist_max
         self.flag_seg = flag_seg
         self.flag_En_hist_seg = flag_En_hist_seg
+        self.use_gpu = getattr(chamb, 'use_gpu', False)
+        self.array_backend = cp if self.use_gpu else np
 
         xg_hist = np.arange(0, chamb.x_aper + 2. * Dx_hist, Dx_hist, float)
         xgr_hist = xg_hist[1:]
@@ -89,7 +92,7 @@ class impact_management(object):
         Nxg_hist = len(xg_hist)
         bias_x_hist = np.min(xg_hist)
 
-        self.En_g_hist = np.linspace(
+        self.En_g_hist = self.array_backend.linspace(
             0., En_hist_max, Nbin_En_hist)  # hist. grid
         self.DEn_hist = self.En_g_hist[1] - self.En_g_hist[0]  # hist. step
 
@@ -97,7 +100,7 @@ class impact_management(object):
         if flag_cos_angle_hist:
             self.cos_angle_width = cos_angle_width
             N_angles = int(1. / cos_angle_width) + 1
-            self.cos_angle_hist = np.zeros(N_angles, float)
+            self.cos_angle_hist = self.array_backend.zeros(N_angles, float)
             print('Saving cosine of angle of incident electrons.')
         else:
             print('Not saving cosine of angle of incident electrons.')
@@ -111,30 +114,30 @@ class impact_management(object):
         self.En_imp_last_step_eV = None
         self.En_emit_last_step_eV = None
 
-        self.nel_impact_hist_tot = np.zeros(Nxg_hist, float)
-        self.nel_impact_hist_scrub = np.zeros(Nxg_hist, float)
-        self.energ_eV_impact_hist = np.zeros(Nxg_hist, float)
-        self.En_hist_line = np.zeros(Nbin_En_hist, float)
+        self.nel_impact_hist_tot = self.array_backend.zeros(Nxg_hist, float)
+        self.nel_impact_hist_scrub = self.array_backend.zeros(Nxg_hist, float)
+        self.energ_eV_impact_hist = self.array_backend.zeros(Nxg_hist, float)
+        self.En_hist_line = self.array_backend.zeros(Nbin_En_hist, float)
 
         self.flag_lifetime_hist = flag_lifetime_hist
 
         if flag_lifetime_hist:
             self.Nbin_lifetime_hist = Nbin_lifetime_hist
             self.lifetime_hist_max = lifetime_hist_max
-            self.lifetime_g_hist = np.linspace(
+            self.lifetime_g_hist = self.array_backend.linspace(
                 0., lifetime_hist_max, Nbin_lifetime_hist)  # hist. grid
             # hist. step
             self.Dt_lifetime_hist = self.lifetime_g_hist[1] - \
                 self.lifetime_g_hist[0]
-            self.lifetime_hist_line = np.zeros(Nbin_lifetime_hist, float)
+            self.lifetime_hist_line = self.array_backend.zeros(Nbin_lifetime_hist, float)
 
         if flag_seg:
-            self.nel_hist_impact_seg = np.zeros(chamb.N_vert, float)
-            self.nel_hist_emit_seg = np.zeros(chamb.N_vert, float)
-            self.energ_eV_impact_seg = np.zeros(chamb.N_vert, float)
+            self.nel_hist_impact_seg = self.array_backend.zeros(chamb.N_vert, float)
+            self.nel_hist_emit_seg = self.array_backend.zeros(chamb.N_vert, float)
+            self.energ_eV_impact_seg = self.array_backend.zeros(chamb.N_vert, float)
             if flag_En_hist_seg:
                 self.seg_En_hist_lines = [
-                    np.zeros(Nbin_En_hist, float) for _ in range(chamb.N_vert)]
+                    self.array_backend.zeros(Nbin_En_hist, float) for _ in range(chamb.N_vert)]
 
         print('Done impact man. init.')
 
@@ -171,6 +174,21 @@ class impact_management(object):
 
     def reset_lifetime_hist_line(self):
         self.lifetime_hist_line *= 0.
+
+    def _compute_hist(self, x_mp, wei_mp, bias_x, Dx, hist):
+        if self.use_gpu:
+            return histcu.compute_hist_rawkernel_notrans(
+                x_mp, wei_mp, float(bias_x), float(Dx), int(hist.size), hist)
+        else:
+            return histf.compute_hist(x_mp, wei_mp, bias_x, Dx, hist)
+
+    @staticmethod
+    def _count_nonzero(self, mask):
+        return int(self.array_backend.count_nonzero(mask))
+    
+    @staticmethod
+    def _sum_to_float(self,values):
+        return float(self.array_backend.sum(values))
         
     @profile
     def backtrack_and_second_emiss(self, old_pos, MP_e, tt_curr=None):

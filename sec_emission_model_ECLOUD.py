@@ -53,13 +53,15 @@
 import numpy as np
 from numpy import sqrt, exp
 from numpy.random import rand
+import cupy as cp
 from . import electron_emission as ee
 
 
 def yield_fun2(E, costheta, Emax, del_max, R0, E0, s, flag_costheta_delta_scale=True, flag_costheta_Emax_shift=True):
+    array_backend = cp if isinstance(E, cp.ndarray) or isinstance(costheta, cp.ndarray) else np
 
     if flag_costheta_delta_scale:
-        del_max_tilde = del_max * exp(0.5 * (1. - costheta))
+        del_max_tilde = del_max * array_backend.exp(0.5 * (1. - costheta))
     else:
         del_max_tilde = del_max
 
@@ -71,10 +73,10 @@ def yield_fun2(E, costheta, Emax, del_max, R0, E0, s, flag_costheta_delta_scale=
     x = E / E_max_tilde
 
     true_sec = del_max_tilde * (s * x) / (s - 1. + x**s)
-    reflected = R0 * ((sqrt(E) - sqrt(E + E0)) / (sqrt(E) + sqrt(E + E0)))**2.
+    reflected = R0 * ((array_backend.sqrt(E) - array_backend.sqrt(E + E0)) / (array_backend.sqrt(E) + array_backend.sqrt(E + E0)))**2.
 
     delta = true_sec + reflected
-    ref_frac = 0. * delta
+    ref_frac = array_backend.zeros_like(delta)
     mask_non_zero = (delta > 0)
     ref_frac[mask_non_zero] = reflected[mask_non_zero] / delta[mask_non_zero]
 
@@ -121,11 +123,13 @@ class SEY_model_ECLOUD(object):
         pass
 
     def SEY_process(self, nel_impact, E_impact_eV, costheta_impact, i_impact):
+        array_backend = cp if isinstance(nel_impact, cp.ndarray) or isinstance(E_impact_eV, cp.ndarray) or isinstance(costheta_impact, cp.ndarray) else np
+        random_backend = cp.random if array_backend is cp else np.random
 
         yiel, ref_frac = yield_fun2(
             E_impact_eV, costheta_impact, self.Emax, self.del_max, self.R0, E0=self.E0, s=self.s,
             flag_costheta_delta_scale=self.flag_costheta_delta_scale, flag_costheta_Emax_shift=self.flag_costheta_Emax_shift)
-        flag_elast = (rand(len(ref_frac)) < ref_frac)
+        flag_elast = (random_backend.rand(len(ref_frac)) < ref_frac)
         flag_truesec = ~(flag_elast)
         nel_emit = nel_impact * yiel
 
@@ -134,6 +138,7 @@ class SEY_model_ECLOUD(object):
     def impacts_on_surface(self, mass, nel_impact, x_impact, y_impact, z_impact,
                            vx_impact, vy_impact, vz_impact, Norm_x, Norm_y, i_found,
                            v_impact_n, E_impact_eV, costheta_impact, nel_mp_th, flag_seg):
+        array_backend = cp if isinstance(nel_impact, cp.ndarray) or isinstance(x_impact, cp.ndarray) else np
 
         nel_emit_tot_events, flag_elast, flag_truesec = self.SEY_process(nel_impact, E_impact_eV, costheta_impact, i_found)
 
@@ -156,16 +161,16 @@ class SEY_model_ECLOUD(object):
         )
 
         # true secondary
-        N_true_sec = np.sum(flag_truesec)
+        N_true_sec = int(array_backend.count_nonzero(flag_truesec))
         n_add_total = 0
         if N_true_sec > 0:
 
-            n_add = np.zeros_like(flag_truesec, dtype=int)
-            n_add[flag_truesec] = np.ceil(nel_replace[flag_truesec] / nel_mp_th) - 1
+            n_add = array_backend.zeros_like(flag_truesec, dtype=int)
+            n_add[flag_truesec] = array_backend.ceil(nel_replace[flag_truesec] / nel_mp_th) - 1
             n_add[n_add < 0] = 0.  # in case of underflow
             nel_replace[flag_truesec] = nel_replace[flag_truesec] / (n_add[flag_truesec] + 1.)
 
-            n_add_total = np.sum(n_add)
+            n_add_total = int(array_backend.sum(n_add))
 
             # MPs to be replaced
             En_truesec_eV = ee.sec_energy_hilleret_model2(
@@ -178,13 +183,13 @@ class SEY_model_ECLOUD(object):
             # Add new MPs
             if n_add_total != 0:
                 # Clone MPs
-                x_new_MPs = np.repeat(x_impact, n_add)
-                y_new_MPs = np.repeat(y_impact, n_add)
-                z_new_MPs = np.repeat(z_impact, n_add)
-                norm_x_add = np.repeat(Norm_x, n_add)
-                norm_y_add = np.repeat(Norm_y, n_add)
-                nel_new_MPs = np.repeat(nel_replace, n_add)
-                E_impact_eV_add = np.repeat(E_impact_eV, n_add)
+                x_new_MPs = array_backend.repeat(x_impact, n_add)
+                y_new_MPs = array_backend.repeat(y_impact, n_add)
+                z_new_MPs = array_backend.repeat(z_impact, n_add)
+                norm_x_add = array_backend.repeat(Norm_x, n_add)
+                norm_y_add = array_backend.repeat(Norm_y, n_add)
+                nel_new_MPs = array_backend.repeat(nel_replace, n_add)
+                E_impact_eV_add = array_backend.repeat(E_impact_eV, n_add)
 
                 # Generate new MP properties, angles and energies
                 En_truesec_eV_add = ee.sec_energy_hilleret_model2(
@@ -195,25 +200,25 @@ class SEY_model_ECLOUD(object):
                     n_add_total, En_truesec_eV_add, norm_x_add, norm_y_add, mass)
 
                 if flag_seg:
-                    i_seg_new_MPs = np.repeat(i_found, n_add)
+                    i_seg_new_MPs = array_backend.repeat(i_found, n_add)
                 else:
                     i_seg_new_MPs = None
 
         if n_add_total == 0:
-            nel_new_MPs = np.array([])
-            x_new_MPs = np.array([])
-            y_new_MPs = np.array([])
-            z_new_MPs = np.array([])
-            vx_new_MPs = np.array([])
-            vy_new_MPs = np.array([])
-            vz_new_MPs = np.array([])
-            i_seg_new_MPs = np.array([])
+            nel_new_MPs = array_backend.array([])
+            x_new_MPs = array_backend.array([])
+            y_new_MPs = array_backend.array([])
+            z_new_MPs = array_backend.array([])
+            vx_new_MPs = array_backend.array([])
+            vy_new_MPs = array_backend.array([])
+            vz_new_MPs = array_backend.array([])
+            i_seg_new_MPs = array_backend.array([])
 
         events = flag_truesec
         event_type = flag_truesec
         if n_add_total != 0:
-            events_add = np.repeat(event_type, n_add)
-            events = np.concatenate([event_type, events_add])
+            events_add = array_backend.repeat(event_type, n_add)
+            events = array_backend.concatenate([event_type, events_add])
         extended_event_type = events
 
         event_info = {'extended_event_type': extended_event_type}
