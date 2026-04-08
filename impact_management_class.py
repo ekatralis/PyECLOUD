@@ -53,6 +53,7 @@
 import numpy as np
 from . import hist_for as histf
 from . import seg_impact as segi
+from . import seg_impact_cupy as segicu
 from scipy.constants import e as qe
 from line_profiler import profile
 import cupy as cp

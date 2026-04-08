@@ -88,7 +88,7 @@ void impact_point_and_normal_kernel(
 _impact_point_and_normal_kernel = cp.RawKernel(
     _IMPACT_POINT_AND_NORMAL_SRC,
     "impact_point_and_normal_kernel",
-    options=("--std=c++11"), #, "--fmad=false" for more accurate floating-point results, but may reduce performance
+    options=("--std=c++11", ), #, "--fmad=false" for more accurate floating-point results, but may reduce performance
     backend="nvrtc",
 )
 
