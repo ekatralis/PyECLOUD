@@ -139,41 +139,43 @@ class impact_management(object):
                 self.seg_En_hist_lines = [
                     self.array_backend.zeros(Nbin_En_hist, float) for _ in range(chamb.N_vert)]
 
+        self._reset_zero = self.array_backend.array([0.])
+
         print('Done impact man. init.')
 
     def reset_impact_hist_tot(self):
-        self.nel_impact_hist_tot *= 0.
+        self.nel_impact_hist_tot *= self._reset_zero
 
     def reset_impact_hist_scrub(self):
-        self.nel_impact_hist_scrub *= 0.
+        self.nel_impact_hist_scrub *= self._reset_zero
 
     def reset_energ_eV_impact_hist(self):
-        self.energ_eV_impact_hist *= 0.
+        self.energ_eV_impact_hist *= self._reset_zero
 
     def reset_En_hist_line(self):
-        self.En_hist_line *= 0.
+        self.En_hist_line *= self._reset_zero
 
     def reset_seg_En_hist_lines(self):
         for ii in range(self.chamb.N_vert):
-            self.seg_En_hist_lines[ii] *= 0.
+            self.seg_En_hist_lines[ii] *= self._reset_zero
 
     def reset_hist_impact_seg(self):
         if self.flag_seg:
-            self.nel_hist_impact_seg *= 0.
+            self.nel_hist_impact_seg *= self._reset_zero
 
     def reset_hist_emit_seg(self):
         if self.flag_seg:
-            self.nel_hist_emit_seg *= 0.
+            self.nel_hist_emit_seg *= self._reset_zero
 
     def reset_energ_impact_seg(self):
         if self.flag_seg:
-            self.energ_eV_impact_seg *= 0.
+            self.energ_eV_impact_seg *= self._reset_zero
 
     def reset_cos_angle_hist(self):
-        self.cos_angle_hist *= 0
+        self.cos_angle_hist *= self._reset_zero
 
     def reset_lifetime_hist_line(self):
-        self.lifetime_hist_line *= 0.
+        self.lifetime_hist_line *= self._reset_zero
 
     def _compute_hist(self, x_mp, wei_mp, bias_x, Dx, hist):
         if self.use_gpu:
