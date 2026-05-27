@@ -1,6 +1,7 @@
 import h5py
 
 import os
+import sys
 
 class SimulationStatus(object):
     def __init__(self,  N_turns_per_run=None, N_turns_target=None, check_for_resubmit=False):
@@ -76,8 +77,8 @@ class SimulationStatus(object):
         if self.check_for_resubmit:
             
             if self.last_turn_part+1<self.N_turns_target:
-                print('resubmit the job')
-                os.system('echo "sbatch job.cmd" > resubmit.sh')
+                print('resubmit the job. Exiting with resubmit code (177)')
+                sys.exit(177)
                 
     def restart_last(self):
         
