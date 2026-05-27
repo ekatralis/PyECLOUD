@@ -126,12 +126,13 @@ if __name__=='__main__':
     for p in proc_list:
         p.start()
 
+    accepted_exits = [0, 177] # Sucess exit and resubmit exit
     sim_start_time = time.time()
     # Thread monitor
     while True:
         alive = [p.is_alive() for p in proc_list]
         exitcodes = [p.exitcode for p in proc_list]
-        if any(code is not None and code != 0 for code in exitcodes):
+        if any(code is not None and code not in accepted_exits for code in exitcodes):
             print("[Main] ERROR: One or more processes failed. Terminating all...", file=sys.stderr)
             for p in proc_list:
                 if p.is_alive():
@@ -146,4 +147,12 @@ if __name__=='__main__':
     
     for p in proc_list:
         p.join()
+    exitcodes = [p.exitcode for p in proc_list]
+
+    if 177 in exitcodes:
+        sys.exit(177)
+
+    if any(code != 0 for code in exitcodes):
+        sys.exit(1)
+
 
