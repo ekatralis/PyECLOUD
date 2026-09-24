@@ -1,4 +1,4 @@
-cimport boris_cython
+from boris_cython cimport boris_c
 import numpy as np
 cimport numpy as np
 
