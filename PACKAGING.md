@@ -72,3 +72,23 @@ The legacy `001_comparison_against_reference.py` creates plots, not assertions,
 and defines no acceptance tolerances. Full-duration reference comparisons
 therefore remain a scientific release review, not an automated passing claim.
 Do not update reference files merely to accommodate a packaging change.
+
+## Local validation completed (2026-09-24)
+
+Linux wheel builds and installed tests pass on CPython 3.10–3.14 (12 PyPIC and
+14 PyECLOUD tests per version). Isolated sdist-to-wheel builds, metadata,
+editable installs, compiler-free wheel installs, KLU execution, and declared
+minimum dependencies passed. Published PyHEADTAIL installation and tracking
+imports also passed on all five Linux Python versions.
+MacOS and release workflows have not been run. Local wheels require glibc 2.31;
+CI targets manylinux_2_28 using its older build image. Nothing was published.
+
+`tools/compare_reference.py` runs a selected upstream case against stored
+reference data. Pass `--case drift|dipole|boris_fortran|boris_cython`,
+`--fixtures /path/to/testing/tests_buildup`, and `--output /scratch/case`.
+Use `--duration 2.51e-8` for the first passage; omit it for a full run.
+Four first-passage comparisons completed. They are diagnostic: historical
+references have no recorded seed or acceptance tolerances. In particular,
+solenoid impact/emission series differ by approximately 104% in relative L2
+norm and require scientific review before declaring physics regression
+acceptance. No historical references were modified.
