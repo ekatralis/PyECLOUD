@@ -59,4 +59,4 @@ geom_impact_poly_cython_src = custom_target('geom_impact_poly_cython_c', input: 
 py.extension_module('geom_impact_poly_cython', [geom_impact_poly_cython_src],
   include_directories: incs, install: true, subdir: 'PyECLOUD')
 
-meson.add_dist_script(py, 'tools/prepare_sdist.py')
+meson.add_dist_script(py, files('tools/prepare_sdist.py'))
