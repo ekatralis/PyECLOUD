@@ -1,5 +1,32 @@
 # PyECLOUD
 
-PyECLOUD is a 2D macro-particle code for the simulation of electron cloud effects in particle accelerators.
+Install the standard CPU package with `python -m pip install PyECLOUD`.
+The distribution is named `PyECLOUD`; the import remains `PyECLOUD`.
+Python 3.10–3.14 and NumPy 2.x are the target support matrix.
+Linux x86_64 and macOS Intel/Apple Silicon wheels avoid local compilation.
 
-More information about installation and usage can be found in the [Wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki).
+Optional KLU solver: `python -m pip install "PyECLOUD[klu]"`.
+Optional PyHEADTAIL tracking: `python -m pip install "PyECLOUD[tracking]"`.
+PyHEADTAIL may build from source and its compatibility is tested separately.
+
+## Build from source
+
+Install a C compiler and GNU Fortran (`gcc gfortran` on Linux; Xcode command
+line tools and Homebrew `gcc` on macOS). Then run `python -m pip install .`.
+Build requirements are installed automatically in an isolated environment.
+On macOS set `FC` to the installed versioned gfortran executable if necessary.
+
+For development:
+
+```sh
+python -m pip install meson-python meson ninja 'numpy>=2,<3' 'Cython>=3'
+python -m pip install --no-build-isolation -e '.[test]'
+```
+
+Keep that environment's build dependencies installed: editable imports can
+rebuild compiled extensions. Legacy scripts remain available but are not
+used by pip. Build release artifacts with `python -m build`.
+
+Run installed-package tests from outside the checkout:
+`python /path/to/checkout/tools/test_installed.py`.
+See `PACKAGING.md` for release and validation details.

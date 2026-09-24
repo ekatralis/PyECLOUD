@@ -74,7 +74,7 @@ class pusher_strong_B_generalized():
         if B_map_file is None:
             self.flag_B_map = False
             self.analyt_quad_grad1 = False
-        elif B_map_file is 'analytic_qaudrupole_unit_grad':
+        elif B_map_file == 'analytic_qaudrupole_unit_grad':
             print("B map analytic quadrupole")
             self.flag_B_map = False
             self.analyt_quad_grad1 = True

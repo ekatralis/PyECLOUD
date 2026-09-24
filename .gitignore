@@ -59,3 +59,10 @@ testing/tests_buildup/LHC_ArcDipReal_450GeV_sey1.70_2.5e11ppb_bl_1.00ns_stress_s
 testing/tests_buildup/LHC_ArcDipReal_450GeV_sey1.70_2.5e11ppb_bl_1.00ns_stress_saver/simulation_state_1.pkl
 testing/tests_buildup/progress
 
+
+# Python packaging outputs
+dist/
+.mesonpy-*/
+build/
+__pycache__/
+*.egg-info/

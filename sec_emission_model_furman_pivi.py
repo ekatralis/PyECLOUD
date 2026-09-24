@@ -604,7 +604,7 @@ class SEY_model_furman_pivi():
         else:
             F_n = 1
         f_n_ts = F_n * energy**(p_n_curr - 1) * np.exp(-energy / eps_curr)
-        area = scipy.integrate.simps(f_n_ts, energy)
+        area = scipy.integrate.simpson(f_n_ts, x=energy)
         f_n_ts = f_n_ts / area  # normalisation
 
         return f_n_ts, P_n_ts_return
@@ -625,7 +625,7 @@ class SEY_model_furman_pivi():
                     average_f_n_ts = average_f_n_ts + f_n_ts * P_n_ts * ii * gammainc((ii - 1) * p_n_curr, (E_0 - energy) / eps_n_curr) / factor
             else:
                 average_f_n_ts = average_f_n_ts + f_n_ts * P_n_ts * ii
-        area = scipy.integrate.simps(average_f_n_ts, energy)
+        area = scipy.integrate.simpson(average_f_n_ts, x=energy)
         return average_f_n_ts / area
     ############################################################################
     ############################################################################

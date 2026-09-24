@@ -1,3 +1,4 @@
+from ._version import __version__
 #!/afs/cern.ch/project/uslarp/opt/lxplus64/Python-2.7.2/bin/python
 
 # -Begin-preamble-------------------------------------------------------
@@ -71,7 +72,7 @@ class BuildupSimulation(object):
         **kwargs
     ):
 
-        print("PyECLOUD Version 8.7.1")
+        print("PyECLOUD Version " + __version__)
         (
             beamtim,
             spacech_ele,

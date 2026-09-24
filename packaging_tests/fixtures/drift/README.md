@@ -1,0 +1,1 @@
+Inputs copied from the upstream LHC drift regression. Tests override grid size, particle counts and duration to exercise installation quickly; this is not a replacement for the full physics reference run.

@@ -1,3 +1,4 @@
+from ._version import __version__
 # -Begin-preamble-------------------------------------------------------
 #
 #                           CERN
@@ -238,28 +239,11 @@ class Ecloud(object):
 
         """
 
-        print("PyECLOUD Version 8.7.1")
+        print("PyECLOUD Version " + __version__)
 
-        # These git commands return the hash and the branch of the specified git directory.
-        path_to_git = os.path.dirname(os.path.abspath(__file__)) + "/.git"
-        cmd_hash = "git --git-dir %s rev-parse HEAD" % path_to_git
-        cmd_branch = "git --git-dir %s rev-parse --abbrev-ref HEAD" % path_to_git
-        try:
-            git_hash = "git hash: %s" % (
-                subprocess.check_output(cmd_hash.split()).split()[0]
-            )
-        except Exception as e:
-            git_hash = "Retrieving git hash failed"
-            print(e)
+        from ._provenance import git_provenance
+        git_hash, git_branch = git_provenance()
         print(git_hash)
-
-        try:
-            git_branch = "git branch: %s" % (
-                subprocess.check_output(cmd_branch.split()).split()[0]
-            )
-        except Exception as e:
-            git_branch = "Retrieving git branch failed"
-            print(e)
         print(git_branch)
 
         print("PyHEADTAIL module")

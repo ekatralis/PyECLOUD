@@ -1,0 +1,26 @@
+name: Optional PyHEADTAIL compatibility
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tracking:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
+        os: [ubuntu-latest, macos-15-intel, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gfortran
+      - if: runner.os == 'macOS'
+        run: |
+          brew install gcc
+          python -c "import pathlib,subprocess; p=pathlib.Path(subprocess.check_output(['brew','--prefix','gcc'],text=True).strip()); print('FC='+str(max((p/'bin').glob('gfortran-*'),key=lambda x:int(x.name.rsplit('-',1)[1]))))" >> "$GITHUB_ENV"
+      - run: python -m pip install '.[tracking]'
+      - run: python -c "from PyECLOUD.Transverse_Efield_map_for_frozen_cloud import Transverse_Efield_map; from PyECLOUD.PyEC4PyHT import Ecloud"

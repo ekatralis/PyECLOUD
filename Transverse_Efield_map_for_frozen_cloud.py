@@ -1,7 +1,10 @@
 import numpy as np
 from scipy.constants import c
 
-from PyHEADTAIL.particles.slicing import UniformBinSlicer
+try:
+    from PyHEADTAIL.particles.slicing import UniformBinSlicer
+except ImportError as exc:
+    raise ImportError('Frozen-cloud tracking requires PyECLOUD[tracking]. Install with pip install "PyECLOUD[tracking]".') from exc
 from PyPIC.PyPIC_Scatter_Gather import PyPIC_Scatter_Gather
 
 
