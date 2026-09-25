@@ -15,7 +15,7 @@ sed -i.bak \
 rm pyproject.toml.bak
 
 # Update source-file preambles
-python3 h000_find_and_modify_preamble.py "${TAG}"
+python3 release_modify_preamble.py "${TAG}"
 
 # Commit the version changes
 git add pyproject.toml
