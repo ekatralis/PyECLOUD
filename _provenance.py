@@ -1,7 +1,7 @@
 """Version and optional source-checkout provenance; Git is never required."""
 from pathlib import Path
 import subprocess
-from ._version import __version__
+from . import __version__
 
 
 def git_provenance():

@@ -5,7 +5,7 @@ The distribution is named `PyECLOUD`; the import remains `PyECLOUD`.
 Python 3.10–3.14 and NumPy 2.x are the target support matrix.
 Linux x86_64 and macOS Intel/Apple Silicon wheels avoid local compilation.
 
-Optional KLU solver: `python -m pip install "PyECLOUD[klu]"`.
+PyKLU is a required dependency and is installed automatically.
 Optional PyHEADTAIL tracking: `python -m pip install "PyECLOUD[tracking]"`.
 PyHEADTAIL may build from source and its compatibility is tested separately.
 
@@ -30,3 +30,8 @@ used by pip. Build release artifacts with `python -m build`.
 Run installed-package tests from outside the checkout:
 `python /path/to/checkout/tools/test_installed.py`.
 See `PACKAGING.md` for release and validation details.
+
+The package version is defined only in `[project].version` in `pyproject.toml`.
+`__version__` reads installed distribution metadata, including editable installs.
+After changing the version, reinstall the package to refresh that metadata.
+Legacy uninstalled source checkouts report `unknown (not installed)`.
