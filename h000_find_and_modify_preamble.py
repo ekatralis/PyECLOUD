@@ -1,13 +1,10 @@
 import os
+import sys
+import re
 
-begin = '''#----------------------------------------------------------------------
-#
-#                           CERN
-#
-#     European Organization for Nuclear Research
-'''
+version = sys.argv[1].removeprefix('v')
 
-#-Begin-preamble-------------------------------------------------------
+new_preamble = f'''#-Begin-preamble-------------------------------------------------------
 #
 #                           CERN
 #
@@ -16,7 +13,7 @@ begin = '''#--------------------------------------------------------------------
 #
 #     This file is part of the code:
 #
-#                   PyECLOUD Version 8.7.1
+#                   PyECLOUD Version {version}
 #
 #
 #     Main author:          Giovanni IADAROLA
@@ -57,14 +54,19 @@ begin = '''#--------------------------------------------------------------------
 #     The material cannot be sold. CERN should be  given  credit  in
 #     all references.
 #
-#-End-preamble---------------------------------------------------------
+#-End-preamble---------------------------------------------------------'''
 
+pattern = re.compile(
+    r'#-Begin-preamble-+\n.*?#-End-preamble-+',
+    re.DOTALL
+)
 
-for dirpath, _, filenames in os.walk('.'):
-    full_paths = [os.path.join(dirpath, x) for x in filenames]
+for dirpath, _, filenames in os.walk('./PyECLOUD'):
+    for filename in filenames:
+        if not filename.endswith('.py'):
+            continue
 
-    python_files = [x for x in full_paths if x.endswith('.py')]
-    for path in python_files:
+        path = os.path.join(dirpath, filename)
 
         if os.path.abspath(path) == os.path.abspath(__file__):
             continue
@@ -72,23 +74,10 @@ for dirpath, _, filenames in os.walk('.'):
         with open(path, 'r') as f:
             content = f.read()
 
-        if begin in content:
-            print(path)
-            content = content.replace(begin, newbegin)
+        new_content, replacements = pattern.subn(new_preamble, content)
+
+        if replacements:
+            print(f'Changing preamble: {path}')
 
             with open(path, 'w') as f:
-                f.write(content)
-
-        if end in content:
-            print('End to be changed:')
-            print(path)
-            content = content.replace(end, newend)
-
-            with open(path, 'w') as f:
-                f.write(content)
-
-        if '#--------------' in content:
-            print('Test')
-            print(path)
-
-
+                f.write(new_content)

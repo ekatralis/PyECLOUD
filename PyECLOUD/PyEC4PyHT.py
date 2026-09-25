@@ -1,4 +1,3 @@
-from . import __version__
 # -Begin-preamble-------------------------------------------------------
 #
 #                           CERN
@@ -51,6 +50,7 @@ from . import __version__
 #
 # -End-preamble---------------------------------------------------------
 
+from . import __version__
 import os
 import subprocess
 import time

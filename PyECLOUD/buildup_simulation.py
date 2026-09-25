@@ -1,6 +1,3 @@
-from . import __version__
-#!/afs/cern.ch/project/uslarp/opt/lxplus64/Python-2.7.2/bin/python
-
 # -Begin-preamble-------------------------------------------------------
 #
 #                           CERN
@@ -52,6 +49,8 @@ from . import __version__
 #     all references.
 #
 # -End-preamble---------------------------------------------------------
+
+from . import __version__
 
 
 from . import init as init
