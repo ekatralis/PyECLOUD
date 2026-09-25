@@ -5,7 +5,7 @@ from . import __version__
 
 
 def git_provenance():
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent.parent
     if not (root / ".git").exists():
         return "git hash: unavailable (installed package)", "git branch: unavailable (installed package)"
     def query(*args):
