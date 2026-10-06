@@ -26,7 +26,7 @@ include-package-data = false
 py-modules = []
 
 [tool.setuptools.packages.find]
-include = ["PyECLOUD*"]
+include = ["PyECLOUD*", "PyPARIS*", "PyPARIS_sim_class*", "PyPARIS_CoupledBunch_sim_class*"]
 namespaces = false
 
 [tool.setuptools.dynamic]
