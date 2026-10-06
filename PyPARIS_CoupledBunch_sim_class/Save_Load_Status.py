@@ -1,12 +1,14 @@
 import h5py
 
-import os
+import subprocess
+import sys
 
 class SimulationStatus(object):
-    def __init__(self,  N_turns_per_run=None, N_turns_target=None, resubmit_command=None):
+    def __init__(self,  N_turns_per_run=None, N_turns_target=None, resubmit_command=None, submission_system = None):
         self.N_turns_target = N_turns_target
         self.N_turns_per_run = N_turns_per_run
         self.resubmit_command = resubmit_command
+        self.submission_system = submission_system
         
         self.filename = 'simulation_status.sta'
     
@@ -80,12 +82,25 @@ class SimulationStatus(object):
         print('Done part:\n\n')
         self.print_from_file()
         print('\n\n')
-        
-        if self.resubmit_command is not None:
-            
-            if self.last_turn_part+1<self.N_turns_target:
-                print('resubmit the job')
-                os.system(self.resubmit_command)
+
+        if self.last_turn_part+1<self.N_turns_target:
+            print('Resubmitting the job.')
+            if self.resubmit_command is not None:
+                print(f'Resubmit command has been specified: Running {self.resubmit_command}')
+                result = subprocess.run(self.resubmit_command, shell=True)
+                sys.exit(result.returncode)
+            elif self.submission_system is not None:       
+                if self.submission_system.lower() == 'slurm':
+                    print('Slurm submission selected: Running sbatch job.cmd')
+                    result = subprocess.run(['sbatch', 'job.cmd'])
+                    sys.exit(result.returncode)
+                elif self.submission_system.lower() == 'htcondor':
+                    print('HTCondor submission selected: Exiting with resubmit code (177)')
+                    sys.exit(177)
+                else:
+                    raise UserWarning("Unrecognized submission system, cannot resubmit the job")
+            else:
+                raise UserWarning("No resubmit command or submission system specified, cannot resubmit the job")
                 
     def restart_last(self):
         
