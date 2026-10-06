@@ -1,6 +1,6 @@
 import h5py
 
-import os
+import subprocess
 import sys
 
 class SimulationStatus(object):
@@ -83,13 +83,15 @@ class SimulationStatus(object):
                 print('Resubmitting the job.')
                 if self.custom_resubmit_command is not None:
                     print(f'Custom resubmit command has been specified: Running {self.custom_resubmit_command}')
-                    os.system(self.custom_resubmit_command)
-                elif self.submission_system in ('HTCondor', 'htcondor'):
+                    result = subprocess.run(self.custom_resubmit_command, shell=True)
+                    sys.exit(result.returncode)
+                elif self.submission_system.lower() == 'htcondor':
                     print('HTCondor submission selected: Exiting with resubmit code (177)')
                     sys.exit(177)
-                elif self.submission_system in ('Slurm', 'slurm'):
+                elif self.submission_system.lower() == 'slurm':
                     print('Slurm submission selected: Running sbatch job.cmd')
-                    os.system('sbatch job.cmd')
+                    result = subprocess.run(['sbatch', 'job.cmd'])
+                    sys.exit(result.returncode)
                 else:
                     raise UserWarning("Unrecognized submission system, cannot resubmit the job")
                 
@@ -111,4 +113,3 @@ class SimulationStatus(object):
         print('Restored status:\n\n')
         self.print_from_file()
         print('\n\n')
-
