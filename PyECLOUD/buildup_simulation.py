@@ -1,6 +1,4 @@
-#!/afs/cern.ch/project/uslarp/opt/lxplus64/Python-2.7.2/bin/python
-
-# -Begin-preamble-------------------------------------------------------
+#-Begin-preamble-------------------------------------------------------
 #
 #                           CERN
 #
@@ -50,7 +48,7 @@
 #     The material cannot be sold. CERN should be  given  credit  in
 #     all references.
 #
-# -End-preamble---------------------------------------------------------
+#-End-preamble---------------------------------------------------------
 
 
 from . import init as init
