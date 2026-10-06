@@ -1,4 +1,4 @@
-# The Simulation_parameter.py configuration file
+# Single-bunch simulation parameters
 
 The file Simulation_parameters.py allows configuring your PyECLOUD-PyHEADTAIL single-bunch simulation.
 In the following we describe its different parts:
@@ -67,7 +67,7 @@ dampingrate_y = 100.
 
 The parameters in this section define the bunch.
 
-Optionally the bunch (particle-by-particle coordinates) can be loaded from file using the following intput variable:
+Optionally the bunch (particle-by-particle coordinates) can be loaded from file using the following input variable:
 ```python
 bunch_from_file = None
 ```
@@ -75,7 +75,7 @@ An example on how to save and load a bunch can be found in PyPARIS_sim_class/exa
 
 Alternatively, the bunch can be defined using the following input
 ```python
-intensity = 1.2e+11    # Number of pearticles in the bunch
+intensity = 1.2e+11    # Number of particles in the bunch
 epsn_x = 2.5e-6        # Normalized horizontal r.m.s emittance [m]
 epsn_y = 2.5e-6        # Normalized vertical r.m.s emittance [m]
 sigma_z = 9.181144e-02 # R.m.s bunch length [m]
@@ -106,7 +106,7 @@ macroparticles_per_slice = 5000
 n_macroparticles = macroparticles_per_slice*n_slices
 ```
 ## Multijob setup
-For very long simulations it is convenient to split the simulations over several shorter jobs. This allows also recovering the simulation from the end of the last success full job in case of problems. This is controlled through the following parameters:
+For very long simulations it is convenient to split the simulations over several shorter jobs. This also allows recovering the simulation from the end of the last successful job in case of problems. This is controlled through the following parameters:
 
 ```python
 N_turns = 128 # Per job
@@ -116,18 +116,28 @@ For clusters supporting job resubmissions the job can be resubmitted automatical
 ```python
 check_for_resubmit = True
 ```
-otherwise the user has to take care of the resubmission of the job. Current supported submission systems are:
+In single-bunch multijob mode, `check_for_resubmit` defaults to `True` when omitted.
+Set it explicitly to `False` to manage job resubmission yourself.
+Currently supported submission systems are:
+
 - HTCondor
 - SLURM
-The re-submission steup can be auto-configured using the optional parameter:
+
+Select the submission system using the optional parameter (names are case-insensitive):
 ```python
-submission_system = 'HTCondor' # 'Slurm' or lowercase equivalents
+submission_system = 'HTCondor' # Default; alternatively 'Slurm'
 ```
-For `HTCondor`, the simulation will exit with the resubmit code (177), which has to be handled using DAGMan (see examples). To run a custom command when resubmitting the job instead, configure the parameter:
+For `HTCondor`, the simulation exits with code 177, which must be handled by the scheduler setup (for example, a configured DAGMan workflow).
+For `Slurm`, it runs `sbatch job.cmd` from the simulation's working directory;
+that directory must contain your submission script under that name.
+To run a custom command instead, configure:
 ```python
-resubmit_command = 'echo "resubmitting job"'
+resubmit_command = 'sbatch my_job.sh'
 ```
 This parameter is set to `None` by default and if configured, it takes precedence over `submission_system`.
+The custom command is interpreted by a shell. The simulation process exits with
+the command's return code. PyPARIS's multiprocessing launcher preserves code 177
+but reports other worker failures as code 1.
 
 The information about the multijob run is kept in the file ```simulation_status.sta```. This file needs to be removed to start the simulation from scratch.
 
@@ -148,11 +158,11 @@ epsn_y_max_growth_fraction = 0.5 # Stop on 50% vertical emittance blow-up
 
 ## Saving settings
 
-The ouput data is buffered and dumped to file at regular intervals. The lenght of such intervals can be specified by setting:
+The output data is buffered and dumped to file at regular intervals. The length of such intervals can be specified by setting:
 
 ```python
 write_buffer_every = 3
-slice_stats_to_store = [mean_x, mean_z] 
+slice_stats_to_store = ['mean_x', 'mean_z']
 ```
 
 ## Footprint mode
@@ -234,7 +244,7 @@ fraction_device_dip = 0.65          # Fraction of the machine circumference with
 init_unif_edens_flag_dip = 1        # Activate initial uniform distribution for electrons
 init_unif_edens_dip = 1.0e+12       # Initial electron density (e-/m^3)
 N_MP_ele_init_dip = 500000          # Number of macroparticles
-N_mp_max_dip = N_MP_ele_init_dip*4  # Size of arrazys used to store macroparticle coordinates
+N_mp_max_dip = N_MP_ele_init_dip*4  # Size of arrays used to store macroparticle coordinates
 B_multip_dip = [0.5] #T             # Magnetic field (in Tesla)
 ```
 
@@ -242,10 +252,10 @@ B_multip_dip = [0.5] #T             # Magnetic field (in Tesla)
 The following parameters configure the e-cloud in the quadrupole magnets (which are simulated starting with an electron distribution loaded from file):
 
 ```python
-enable_arc_quad = False             # Activate interaction with e-cloud in the dipoled
+enable_arc_quad = False             # Activate interaction with e-cloud in the quadrupoles
 fraction_device_quad = 7.0e-02      # Fraction of the machine circumference with e-cloud in the quadrupoles
 
-N_mp_max_quad = 2000000             # Size of arrazys used to store macroparticle coordinates
+N_mp_max_quad = 2000000             # Size of arrays used to store macroparticle coordinates
 B_multip_quad = [0., 12.1] #T       # The second element of the list is the magnetic field gradient (in Tesla/m)
 ```
 The following parameters are used to define the file containing the initial e-cloud distribution:

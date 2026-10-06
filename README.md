@@ -113,4 +113,12 @@ directory so only this release's source archive is uploaded, then cleaned up.
 No wheels are uploaded. If building or uploading fails after the tag is pushed,
 finish the remaining release steps manually.
 
-More information about installation and usage can be found in the [Wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki).
+## Documentation
+
+The documentation site starts with the existing input parameter references.
+See [Working on the documentation](docs/documentation.md) for local builds and
+GitHub/Read the Docs previews. Building the site does not require installing the
+simulation packages or compiling their native extensions.
+
+Additional tutorials and physics material remain in the
+[Wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki) pending review for migration.
