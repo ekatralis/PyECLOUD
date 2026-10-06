@@ -767,7 +767,7 @@ class Simulation(object):
             check_for_resubmit=check_for_resubmit,
             N_turns_target=pp.N_turns_target,
             submission_system=pp.submission_system if hasattr(pp, 'submission_system') else 'HTCondor',
-            custom_resubmit_command=pp.custom_resubmit_command if hasattr(pp, 'custom_resubmit_command') else None
+            resubmit_command=pp.resubmit_command if hasattr(pp, 'resubmit_command') else None
         )
         SimSt.before_simulation()
         self.SimSt = SimSt

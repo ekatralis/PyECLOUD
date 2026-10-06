@@ -125,7 +125,7 @@ submission_system = 'HTCondor' # 'Slurm' or lowercase equivalents
 ```
 For `HTCondor`, the simulation will exit with the resubmit code (177), which has to be handled using DAGMan (see examples). To run a custom command when resubmitting the job instead, configure the parameter:
 ```python
-custom_resubmit_command = 'echo "resubmitting job"'
+resubmit_command = 'echo "resubmitting job"'
 ```
 This parameter is set to `None` by default and if configured, it takes precedence over `submission_system`.
 
@@ -281,4 +281,3 @@ resonator_frequency = 2e9
 resonator_Q = 1.
 n_slices_wake = 500
 ```
-

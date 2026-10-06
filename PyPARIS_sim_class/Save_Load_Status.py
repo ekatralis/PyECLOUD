@@ -5,12 +5,12 @@ import sys
 
 class SimulationStatus(object):
     def __init__(self,  N_turns_per_run=None, N_turns_target=None, check_for_resubmit=False,
-                        submission_system: str = 'HTCondor', custom_resubmit_command: str | None = None):
+                        submission_system: str = 'HTCondor', resubmit_command: str | None = None):
         self.N_turns_target = N_turns_target
         self.N_turns_per_run = N_turns_per_run
         self.check_for_resubmit = check_for_resubmit
         self.submission_system = submission_system
-        self.custom_resubmit_command = custom_resubmit_command
+        self.resubmit_command = resubmit_command
         
         self.filename = 'simulation_status.sta'
     
@@ -81,9 +81,9 @@ class SimulationStatus(object):
             
             if self.last_turn_part+1<self.N_turns_target:
                 print('Resubmitting the job.')
-                if self.custom_resubmit_command is not None:
-                    print(f'Custom resubmit command has been specified: Running {self.custom_resubmit_command}')
-                    result = subprocess.run(self.custom_resubmit_command, shell=True)
+                if self.resubmit_command is not None:
+                    print(f'Resubmit command has been specified: Running {self.resubmit_command}')
+                    result = subprocess.run(self.resubmit_command, shell=True)
                     sys.exit(result.returncode)
                 elif self.submission_system.lower() == 'htcondor':
                     print('HTCondor submission selected: Exiting with resubmit code (177)')
