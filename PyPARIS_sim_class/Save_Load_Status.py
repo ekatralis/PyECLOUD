@@ -4,10 +4,13 @@ import os
 import sys
 
 class SimulationStatus(object):
-    def __init__(self,  N_turns_per_run=None, N_turns_target=None, check_for_resubmit=False):
+    def __init__(self,  N_turns_per_run=None, N_turns_target=None, check_for_resubmit=False,
+                        submission_system: str = 'HTCondor', custom_resubmit_command: str | None = None):
         self.N_turns_target = N_turns_target
         self.N_turns_per_run = N_turns_per_run
         self.check_for_resubmit = check_for_resubmit
+        self.submission_system = submission_system
+        self.custom_resubmit_command = custom_resubmit_command
         
         self.filename = 'simulation_status.sta'
     
@@ -77,8 +80,19 @@ class SimulationStatus(object):
         if self.check_for_resubmit:
             
             if self.last_turn_part+1<self.N_turns_target:
-                print('resubmit the job. Exiting with resubmit code (177)')
-                sys.exit(177)
+                print('Resubmitting the job.')
+                if self.custom_resubmit_command is not None:
+                    print(f'Custom resubmit command has been specified: Running {self.custom_resubmit_command}')
+                    os.system(self.custom_resubmit_command)
+                elif self.submission_system in ('HTCondor', 'htcondor'):
+                    print('HTCondor submission selected: Exiting with resubmit code (177)')
+                    sys.exit(177)
+                elif self.submission_system in ('Slurm', 'slurm'):
+                    print('Slurm submission selected: Running sbatch job.cmd')
+                    os.system('sbatch job.cmd')
+                else:
+                    raise UserWarning("Unrecognized submission system, cannot resubmit the job")
+                
                 
     def restart_last(self):
         
