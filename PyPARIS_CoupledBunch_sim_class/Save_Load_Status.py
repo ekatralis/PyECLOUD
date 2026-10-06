@@ -91,8 +91,8 @@ class SimulationStatus(object):
                 sys.exit(result.returncode)
             elif self.submission_system is not None:       
                 if self.submission_system.lower() == 'slurm':
-                    print('Slurm submission selected: Running sbatch job.cmd')
-                    result = subprocess.run(['sbatch', 'job.cmd'])
+                    print('Slurm submission selected: Running sbatch 000s_slurm_job')
+                    result = subprocess.run(['sbatch', '000s_slurm_job'])
                     sys.exit(result.returncode)
                 elif self.submission_system.lower() == 'htcondor':
                     print('HTCondor submission selected: Exiting with resubmit code (177)')
