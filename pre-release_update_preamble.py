@@ -61,7 +61,7 @@ pattern = re.compile(
     re.DOTALL
 )
 
-for dirpath, _, filenames in os.walk('../PyECLOUD'):
+for dirpath, _, filenames in os.walk('./PyECLOUD'):
     for filename in filenames:
         if not filename.endswith('.py'):
             continue
