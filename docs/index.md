@@ -47,6 +47,13 @@ tutorials/restart
 
 ```{toctree}
 :maxdepth: 2
+:caption: Batch jobs
+
+batch/index
+```
+
+```{toctree}
+:maxdepth: 2
 :caption: Reference
 
 parameters/index
