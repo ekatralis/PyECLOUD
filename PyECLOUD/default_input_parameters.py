@@ -97,7 +97,7 @@ parameters_dict = {
             'Dt_lifetime_hist':None,
 
             'Dh_electric_energy': None,
-            'sparse_solver': 'scipy_slu',
+            'sparse_solver': 'PyKLU',
             'PyPICmode'    : 'FiniteDifferences_ShortleyWeller',
             'flag_reinterp_fields_at_substeps': False,
 
