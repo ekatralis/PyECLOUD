@@ -13,16 +13,15 @@ input parameters, outputs, and the underlying physical models.
 - **Beam dynamics:** PyHEADTAIL and PyECLOUD exchange beam/cloud kicks for
   single-bunch and coupled-bunch studies.
 - **Ion-cloud studies:** additional cloud species and cross-ionization models
-  support studies involving ions; a worked beam-ion instability tutorial is
-  still to be added.
+  support studies involving ions.
 
 | Package | Role |
 | --- | --- |
 | `PyECLOUD` | Cloud generation, tracking, emission, and beam coupling |
 | `PyPIC` (`pypic-poisson` on PyPI) | Particle-in-cell field solvers; installed as a dependency |
 | `PyHEADTAIL` | Beam dynamics for coupled simulations |
-| `PyPARIS` | Serial, multiprocessing, and MPI launchers, bundled in the refactor |
-| `PyPARIS_sim_class`, `PyPARIS_CoupledBunch_sim_class` | Configurable simulation classes, bundled in the refactor |
+| `PyPARIS` | Serial, multiprocessing, and MPI launchers, included with PyECLOUD |
+| `PyPARIS_sim_class`, `PyPARIS_CoupledBunch_sim_class` | Configurable simulation classes, included with PyECLOUD |
 | `PyKLU`, `nafflib` | Optional sparse solver and frequency analysis, available on PyPI |
 
 Values in the parameter examples illustrate configurations; they are not

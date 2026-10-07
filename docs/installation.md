@@ -6,8 +6,8 @@ for your platform, then open a shell where `conda` is available.
 
 ## Released packages from PyPI
 
-With Conda available, create an environment with Python 3.13, install the
-compilers and numerical libraries, then install PyHEADTAIL and PyECLOUD:
+With Conda available, create an environment with your preferred Python version, install the
+compilers and numerical libraries, then install PyECLOUD (and optionally PyHEADTAIL for beam tracking):
 
 ```bash
 conda create -n ecloud -c conda-forge python=3.13 pip
@@ -24,8 +24,8 @@ source. PyHEADTAIL provides the beam dynamics functionality used for coupled
 PyECLOUD–PyHEADTAIL simulations.
 
 PyECLOUD declares its Python dependencies, including the Poisson solver package
-`pypic-poisson`, so pip installs these dependencies as needed. The Python import
-names are `PyECLOUD`, `PyHEADTAIL`, and `PyPIC`.
+`pypic-poisson` and the sparse solver `PyKLU`, so pip installs these dependencies as needed. The Python import
+names are `PyECLOUD`, `PyHEADTAIL`, `PyPIC` and `PyKLU`.
 
 For later sessions, activate the existing environment with:
 
@@ -60,17 +60,15 @@ checkout. First prepare the environment with the same Conda commands above and
 install PyHEADTAIL. Replace the final `pip install --upgrade pyecloud` command
 with the following Git checkout and editable install.
 
-The packaging and documentation refactor currently lives on the `main-rc1`
-branch of `ekatralis/PyECLOUD`. To work on that branch, with Git installed:
+With Git installed, clone the main PyECLOUD repository:
 
 ```bash
-git clone --branch main-rc1 https://github.com/ekatralis/PyECLOUD.git
+git clone https://github.com/PyCOMPLETE/PyECLOUD.git
 cd PyECLOUD
 pip install -e .
 ```
 
-Use the repository URL and branch you intend to develop if they differ. For an
-existing checkout, activate `ecloud`, change to the repository root (the folder
+For an existing checkout, activate `ecloud`, change to the repository root (the folder
 containing `pyproject.toml`), and run:
 
 ```bash

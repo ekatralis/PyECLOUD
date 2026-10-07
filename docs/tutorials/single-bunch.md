@@ -3,7 +3,7 @@
 PyECLOUD's `PyEC4PyHT` module supplies electron cloud elements for PyHEADTAIL.
 The `PyPARIS_sim_class` package assembles a single-bunch simulation from
 `Simulation_parameters.py`; PyPARIS provides serial, multiprocessing, and MPI
-launchers. These PyPARIS packages are bundled in the refactored repository.
+launchers. These PyPARIS packages are included with PyECLOUD.
 
 ## Prepare a working directory
 
@@ -99,7 +99,6 @@ See [restart guidance](restart.md#single-bunch-multijob-runs) before recovering 
 interrupted part or enabling automatic resubmission.
 
 The bundled `PyPARIS_CoupledBunch_sim_class` has its own examples and configuration.
-Its ring layout and turn constraints need a separate tutorial; the single-bunch
-commands and configuration above should not be applied to it unchanged.
+Use those examples for its ring layout, turn constraints, and launch commands.
 
 Adapted from the [original PyECLOUD–PyHEADTAIL tutorial](https://github.com/PyCOMPLETE/PyECLOUD/wiki/How-to-perform-PyECLOUD-PyHEADTAIL-simulations).

@@ -54,7 +54,8 @@ request_disk = 20GB
 queue 1
 ```
 
-Resources are examples. The CPU argument keeps the multiprocessing worker count
+Adjust CPU, memory, and disk requests to your simulation.
+The CPU argument keeps the multiprocessing worker count
 consistent with the requested allocation. Simulation data travels to EOS from
 the worker, so no simulation filenames appear in `transfer_output_files`.
 
@@ -103,18 +104,18 @@ and remove the `source .../activate-ecloud.sh` line. The exact container path is
 Input and output transfers still run in the host worker shell. The environment
 recording command will then capture the container's `ECLOUD_CONTAINER_VERSION`.
 
-### Exit codes and publication
+### Exit codes and checkpoint transfers
 
 The script captures Python's exit code immediately. It uploads the checkpoint
 on `0` or `177`, then returns that code. Input or output transfer failures return
 `1`. Do not add an unguarded `set -e` around Python: `177` is expected and the
 checkpoint must be uploaded before exiting.
 
-Every required file is checked before publication, every transfer is checked,
+Every required file is checked before uploading, every transfer is checked,
 and `simulation_status.sta` is uploaded last. Previous bunch states are retained.
-Status-last ordering is not an atomic transaction across all files: inspect a
-failed upload before restarting, since shared logs or configuration may already
-have been replaced. Run only one workflow per EOS simulation directory.
+An interrupted upload can leave files from different parts on EOS. Inspect
+the checkpoint before restarting. Run only one workflow per EOS simulation
+directory.
 
 ## DAGMan continuation
 

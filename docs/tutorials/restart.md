@@ -67,6 +67,4 @@ and, where needed, `resubmit_command` as described in the
 Keep `check_for_resubmit = False` for manual continuation. Do not remove the
 status file as a way to resume: removing it starts the numbering from scratch.
 
-The wiki originally linked to a [checkpointing presentation](https://indico.cern.ch/event/772318/).
-The workflows above follow the current `buildup_simulation.py`,
-`pyecloud_saver.py`, and `PyPARIS_sim_class/Save_Load_Status.py` implementations.
+Further background: [checkpointing presentation](https://indico.cern.ch/event/772318/).

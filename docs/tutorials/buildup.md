@@ -8,10 +8,10 @@ change the beam trajectory in this mode.
 
 Complete the [installation](../installation.md) first. The examples and reference
 datasets are kept in Git; a PyPI installation does not supply the full example
-tree. If you do not already have a checkout, obtain the documentation refactor:
+tree. If you do not already have a checkout, clone the main PyECLOUD repository:
 
 ```bash
-git clone --branch main-rc1 https://github.com/ekatralis/PyECLOUD.git
+git clone https://github.com/PyCOMPLETE/PyECLOUD.git
 cd PyECLOUD
 ```
 
@@ -51,8 +51,8 @@ The working directory contains:
 | `LHC_chm_ver.mat` | Chamber geometry used by the example |
 
 See the [input reference](../parameters/index.md) before changing these settings.
-This is a physics example with a substantial particle population, rather than
-a minimal installation check.
+This example uses a large particle population and can take substantial
+computing time.
 
 Save the following as `run_buildup.py` in the working directory:
 

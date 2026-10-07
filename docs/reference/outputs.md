@@ -110,6 +110,5 @@ empty array or a sentinel value. Inspect the saved data before plotting them.
 This reference adapts the output section of
 {download}`the original manual <../../doc/reference/reference.pdf>` by
 Giovanni Iadarola, Eleonora Belli, Philipp Dijkstal, Lotta Mether, Annalisa Romano,
-Giovanni Rumolo, and Eric Wulff. Field names were checked against
-`PyECLOUD/pyecloud_saver.py`, including `xg_hist_det` (duplicated as `nel_hist_det`
-in the old manual). Model-specific fields are not exhaustively listed here.
+Giovanni Rumolo, and Eric Wulff. Model-specific fields are not exhaustively
+listed here.

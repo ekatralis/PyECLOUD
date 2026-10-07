@@ -8,8 +8,6 @@ new pages to a `toctree` so they appear in the navigation. The logo is
 
 Parameter tables use MyST's fenced `list-table` directive so their Markdown
 cells can contain paragraphs, lists, and equations without long table rows.
-The converter used for the initial manual migration is not needed to edit or
-build the documentation.
 
 ## Build and preview locally
 
@@ -73,6 +71,17 @@ The initial migration used the public PyECLOUD wiki at revision
 `5d30c514549031a5d5baef3eba706a42fa27feed`, reviewed on 7 October 2026.
 New pages link to their original sources so authorship and revision history
 remain traceable.
+
+The manual was converted to Markdown during the initial migration. Its
+converter is not part of the documentation build; edit the Markdown sources
+directly.
+
+The restart guide was checked against `PyECLOUD/buildup_simulation.py`,
+`PyECLOUD/pyecloud_saver.py`, and `PyPARIS_sim_class/Save_Load_Status.py`.
+Output field names were checked against `PyECLOUD/pyecloud_saver.py`, including
+`xg_hist_det`, which was duplicated as `nel_hist_det` in the original manual.
+The parallel execution guide retains the wiki's MPI environment advice;
+the old Python and MPI source-compilation recipes remain historical.
 
 | Original material | Destination |
 | --- | --- |

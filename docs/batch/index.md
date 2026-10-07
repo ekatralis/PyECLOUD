@@ -31,10 +31,9 @@ read the inputs and write the destination for the duration of the job.
 
 ## Python environment
 
-For the default examples, install the **entire Python/Conda environment on
-EOS**, including the interpreter, installed packages, and activation files.
-Putting only the activation script on EOS is insufficient. Workers source
-that script to activate the environment at its EOS location:
+For the default examples, install the **complete Python/Conda environment on
+EOS**, including its interpreter, packages, and activation scripts. Workers
+activate the environment by sourcing:
 
 ```bash
 source /eos/project/e/PROJECT/environments/activate-ecloud.sh
@@ -42,10 +41,9 @@ python -c 'import PyECLOUD, PyPARIS'
 ```
 
 Create this script to activate your EOS-hosted virtualenv or Conda environment.
-For Conda, it should source the EOS-hosted installation's `conda.sh` before
-activating the environment by its EOS path. The environment
-must be compatible with the worker OS and accessible from the worker; an
-environment available only on your laptop will not work. Follow the
+For Conda, source the EOS-hosted installation's `conda.sh` before activating
+the environment by its EOS path. Use an environment compatible with the
+worker OS. Follow the
 [installation instructions](../installation.md) when preparing it.
 
 ### Alternative: a CVMFS container
@@ -74,8 +72,7 @@ are available. Container selection and output-transfer strategy are independent.
 
 ## Output transfers and held jobs
 
-The settings in this section are directives in the **HTCondor submit file**
-(`htcondor.sub`), not shell commands in the worker script.
+Configure output transfers in the **HTCondor submit file** (`htcondor.sub`).
 For the `root://` destinations used here, explicitly list individual files in
 the submit file's `transfer_output_files`. Do not use wildcards or rely on directory transfer via
 this plugin. Archive a directory into one named file, or transfer its files
@@ -88,7 +85,8 @@ example lists one archive and creates a diagnostic version before starting.
 An archive's existence does not establish simulation success.
 
 With `transfer_output_files = ""`, the worker is responsible for saving the
-simulation data. Standard output and error still have their own handling.
+simulation data. HTCondor still transfers standard output and error to the
+locations specified by `output` and `error`.
 `when_to_transfer_output = ON_EXIT` does not recover outputs on eviction or
 removal. See the [HTCondor file-transfer manual](https://htcondor.readthedocs.io/en/latest/users-manual/file-transfer.html).
 

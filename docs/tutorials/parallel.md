@@ -31,9 +31,9 @@ python -c "from mpi4py import MPI; print(MPI.Get_library_version())"
 ```
 
 The scheduler may require `srun` or another launch command instead of `mpiexec`.
-Parallel HDF5 support is not a prerequisite merely for using PyPARIS with MPI.
+PyPARIS MPI execution does not require parallel HDF5.
 
 See the [mpi4py installation guide](https://mpi4py.readthedocs.io/en/stable/install.html)
-for supported installation methods. This page retains the MPI environment advice
-from the wiki's [Python 3 setup guide](https://github.com/PyCOMPLETE/PyECLOUD/wiki/Setup-python-3-(including-mpi4py)-without-admin-rights);
-the old Python and MPI source-compilation recipes are historical.
+for supported installation methods.
+
+Adapted from the wiki's [Python 3 setup guide](https://github.com/PyCOMPLETE/PyECLOUD/wiki/Setup-python-3-(including-mpi4py)-without-admin-rights).
