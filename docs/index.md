@@ -4,10 +4,29 @@ PyECLOUD simulates electron cloud effects in particle accelerators. It supports
 electron cloud buildup simulations and, together with PyHEADTAIL, simulations
 of the interaction between the cloud and the beam.
 
-This documentation covers installation and the existing input parameter references
-for PyECLOUD and PyPARIS single-bunch simulations. Values in the single-bunch
-examples illustrate configurations; they are not a complete input file or a
-list of universal defaults.
+Start with installation and a buildup simulation, then explore beam dynamics,
+input parameters, outputs, and the underlying physical models.
+
+## Simulation modes and packages
+
+- **Buildup:** a prescribed beam drives the electron cloud at an accelerator section.
+- **Beam dynamics:** PyHEADTAIL and PyECLOUD exchange beam/cloud kicks for
+  single-bunch and coupled-bunch studies.
+- **Ion-cloud studies:** additional cloud species and cross-ionization models
+  support studies involving ions; a worked beam-ion instability tutorial is
+  still to be added.
+
+| Package | Role |
+| --- | --- |
+| `PyECLOUD` | Cloud generation, tracking, emission, and beam coupling |
+| `PyPIC` (`pypic-poisson` on PyPI) | Particle-in-cell field solvers; installed as a dependency |
+| `PyHEADTAIL` | Beam dynamics for coupled simulations |
+| `PyPARIS` | Serial, multiprocessing, and MPI launchers, bundled in the refactor |
+| `PyPARIS_sim_class`, `PyPARIS_CoupledBunch_sim_class` | Configurable simulation classes, bundled in the refactor |
+| `PyKLU`, `nafflib` | Optional sparse solver and frequency analysis, available on PyPI |
+
+Values in the parameter examples illustrate configurations; they are not
+complete input files or a list of universal defaults.
 
 ```{toctree}
 :maxdepth: 2
@@ -17,11 +36,24 @@ installation
 ```
 
 ```{toctree}
+:maxdepth: 1
+:caption: Tutorials
+
+tutorials/buildup
+tutorials/single-bunch
+tutorials/parallel
+tutorials/restart
+```
+
+```{toctree}
 :maxdepth: 2
-:caption: Parameter reference
+:caption: Reference
 
 parameters/index
 parameters/single-bunch
+reference/outputs
+physics
+citation
 ```
 
 ```{toctree}
@@ -31,6 +63,6 @@ parameters/single-bunch
 documentation
 ```
 
-Additional tutorials and physics material remain in
-the [existing wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki) pending review
-for inclusion here.
+The [original wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki) remains available
+as a historical source. See [Citing PyECLOUD](citation.md) when using the code
+in a publication.

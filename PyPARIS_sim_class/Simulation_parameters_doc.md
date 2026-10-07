@@ -17,7 +17,7 @@ By choosing ```"Synchrotron"``` as machine class it is possible to define all pa
 ```python
 machine_class = 'Synchrotron'
 ```
-The description of the accelerator is defined by providing the following parameters that are required to define a PyHEADTAIL synchrotron. They are individually described in the [PyHEADTAIL documentation](https://pycomplete.github.io/PyHEADTAIL/PyHEADTAIL.machines.html#PyHEADTAIL.machines.synchrotron.Synchrotron).
+The description of the accelerator is defined by providing the following parameters that are required to define a PyHEADTAIL synchrotron. See the [PyHEADTAIL Synchrotron implementation and constructor documentation](https://github.com/PyCOMPLETE/PyHEADTAIL/blob/master/PyHEADTAIL/machines/synchrotron.py) for their definitions.
 ```python
 optics_mode = 'smooth'
 charge = qe

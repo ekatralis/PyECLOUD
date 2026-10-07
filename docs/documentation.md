@@ -63,5 +63,31 @@ editable source. Preserve original authorship when migrating further material.
 
 Check parameter names, units, defaults, and examples against the implementation
 when changing their descriptions. A clean documentation build checks markup
-and references; it does not verify simulation behaviour. Wiki migration and a
-complete audit of the historical manual are subsequent tasks.
+and references; it does not verify simulation behaviour. A complete numerical
+validation of the tutorials and audit of historical parameter defaults remain
+separate tasks.
+
+## Wiki migration record
+
+The initial migration used the public PyECLOUD wiki at revision
+`5d30c514549031a5d5baef3eba706a42fa27feed`, reviewed on 7 October 2026.
+New pages link to their original sources so authorship and revision history
+remain traceable.
+
+| Original material | Destination |
+| --- | --- |
+| Home: simulation modes, libraries, citation | Homepage, installation, and citation pages |
+| Buildup tutorial | Updated buildup tutorial and plotting example |
+| PyECLOUD–PyHEADTAIL tutorial | Single-bunch tutorial and parallel execution |
+| Reference manual | Input parameter pages, output reference, and downloadable PDF |
+| Physical models and algorithms | Physics references |
+| Python 3 setup: MPI advice | Parallel execution guide |
+| Miniforge installation | Link to the official installation guide |
+| Checkpointing presentation link | Restart guide checked against the current code |
+
+Python 2, Ubuntu 14.04, the Python 3 transition announcement, and the obsolete
+index remain historical. The old macOS recipe has not been promoted to current
+instructions without platform validation. The separate Furman–Pivi and fast
+beam-ion wiki pages were placeholders; the useful Furman–Pivi references were
+retained from the physics page. The old PDF compilation page is superseded by
+the Sphinx build instructions; its LaTeX sources remain in `doc/reference/src/`.

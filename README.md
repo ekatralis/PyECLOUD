@@ -122,10 +122,11 @@ finish the remaining release steps manually.
 
 ## Documentation
 
-The documentation site starts with the existing input parameter references.
+The documentation site includes installation, simulation tutorials, input and
+output references, and links to the physical models.
 See [Working on the documentation](docs/documentation.md) for local builds and
 GitHub/Read the Docs previews. Building the site does not require installing the
 simulation packages or compiling their native extensions.
 
-Additional tutorials and physics material remain in the
-[Wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki) pending review for migration.
+The original [Wiki](https://github.com/PyCOMPLETE/PyECLOUD/wiki) remains available
+as a historical source. See the documentation's migration record for coverage.

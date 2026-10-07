@@ -1,5 +1,9 @@
 # Installation
 
+If Conda is not installed, follow the
+[official Miniforge instructions](https://github.com/conda-forge/miniforge#install)
+for your platform, then open a shell where `conda` is available.
+
 ## Released packages from PyPI
 
 With Conda available, create an environment with Python 3.13, install the
@@ -28,6 +32,26 @@ For later sessions, activate the existing environment with:
 ```bash
 conda activate ecloud
 ```
+
+## Optional packages
+
+[PyKLU](https://pypi.org/project/PyKLU/) supplies the KLU sparse solver, and
+[nafflib](https://pypi.org/project/nafflib/) provides frequency analysis. Both
+are available from PyPI:
+
+```bash
+pip install --upgrade PyKLU nafflib
+```
+
+PyKLU is needed when your input explicitly selects the KLU solver. The default
+installation also supports the SciPy solver through PyPIC. NAFFlib is useful
+for tune and footprint analysis and is not required for a basic buildup run.
+If PyKLU needs to build from source, consult its PyPI installation instructions
+for the additional CMake and BLAS requirements.
+
+MPI execution requires a separate MPI runtime and `mpi4py`; see
+[parallel execution](tutorials/parallel.md). Local multiprocessing does not
+require these MPI dependencies.
 
 ## Editable installation from Git
 
