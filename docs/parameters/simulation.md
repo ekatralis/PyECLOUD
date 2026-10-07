@@ -153,7 +153,7 @@ used for regeneration and saving purposes.
 * - **t_sc_ON**
   - \[s\] Electron space charge forces are neglected for t\<t_sc_ON – normally t_sc_ON=0.
 * - **sparse_solver**
-  - (optional) choices are ’klu’, ’scipy_slu’ \[default\]
+  - (optional) Sparse solver: `PyKLU` (default) or `scipy_slu` (SciPy SuperLU).
 * - **PyPICmode**
   - (optional) Options are ’FiniteDifferences_ShortleyWeller’ \[default\],
     ’ShortleyWeller_WithTelescopicGrids’, ’FiniteDifferences_Staircase’

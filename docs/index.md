@@ -22,7 +22,8 @@ input parameters, outputs, and the underlying physical models.
 | `PyHEADTAIL` | Beam dynamics for coupled simulations |
 | `PyPARIS` | Serial, multiprocessing, and MPI launchers, included with PyECLOUD |
 | `PyPARIS_sim_class`, `PyPARIS_CoupledBunch_sim_class` | Configurable simulation classes, included with PyECLOUD |
-| `PyKLU`, `nafflib` | Optional sparse solver and frequency analysis, available on PyPI |
+| `PyKLU` | Default sparse solver; installed as a dependency |
+| `nafflib` | Optional frequency analysis, available on PyPI |
 
 Values in the parameter examples illustrate configurations; they are not
 complete input files or a list of universal defaults.

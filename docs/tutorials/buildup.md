@@ -31,13 +31,6 @@ cp "$PYECL_CASE/beam.beam" "$PYECL_CASE/LHC_chm_ver.mat" ../ecloud-buildup/
 cd ../ecloud-buildup
 ```
 
-This example selects `sparse_solver = 'klu'` in `simulation_parameters.input`.
-Install the optional solver in the active environment:
-
-```bash
-pip install --upgrade PyKLU
-```
-
 ## Configure and run
 
 The working directory contains:

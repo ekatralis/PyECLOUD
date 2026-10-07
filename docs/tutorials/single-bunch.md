@@ -84,10 +84,6 @@ fig.tight_layout()
 fig.savefig("bunch-centroid.png", dpi=150)
 ```
 
-The historical `004_some_checks.py` expects three completed parts. The example
-shell wrappers also delete the status file and run three parts; use the explicit
-launch commands above for this one-part tutorial.
-
 ## Continue or start another simulation
 
 Keep `simulation_status.sta` and the saved bunch state to continue a completed
@@ -100,5 +96,3 @@ interrupted part or enabling automatic resubmission.
 
 The bundled `PyPARIS_CoupledBunch_sim_class` has its own examples and configuration.
 Use those examples for its ring layout, turn constraints, and launch commands.
-
-Adapted from the [original PyECLOUD–PyHEADTAIL tutorial](https://github.com/PyCOMPLETE/PyECLOUD/wiki/How-to-perform-PyECLOUD-PyHEADTAIL-simulations).

@@ -36,4 +36,3 @@ PyPARIS MPI execution does not require parallel HDF5.
 See the [mpi4py installation guide](https://mpi4py.readthedocs.io/en/stable/install.html)
 for supported installation methods.
 
-Adapted from the wiki's [Python 3 setup guide](https://github.com/PyCOMPLETE/PyECLOUD/wiki/Setup-python-3-(including-mpi4py)-without-admin-rights).

@@ -24,8 +24,14 @@ source. PyHEADTAIL provides the beam dynamics functionality used for coupled
 PyECLOUD–PyHEADTAIL simulations.
 
 PyECLOUD declares its Python dependencies, including the Poisson solver package
-`pypic-poisson` and the sparse solver `PyKLU`, so pip installs these dependencies as needed. The Python import
+`pypic-poisson` and the sparse solver `PyKLU`, so pip installs them automatically.
+The Python import
 names are `PyECLOUD`, `PyHEADTAIL`, `PyPIC` and `PyKLU`.
+
+[PyKLU](https://pypi.org/project/PyKLU/) is the default sparse solver, chosen for
+its speed advantage over SciPy's SuperLU solver. PyECLOUD can also run without
+PyKLU using SciPy: set `sparse_solver = 'scipy_slu'` in
+`simulation_parameters.input` to select it.
 
 For later sessions, activate the existing environment with:
 
@@ -35,19 +41,12 @@ conda activate ecloud
 
 ## Optional packages
 
-[PyKLU](https://pypi.org/project/PyKLU/) supplies the KLU sparse solver, and
-[nafflib](https://pypi.org/project/nafflib/) provides frequency analysis. Both
-are available from PyPI:
+[nafflib](https://pypi.org/project/nafflib/) provides frequency analysis for
+tune and footprint studies:
 
 ```bash
-pip install --upgrade PyKLU nafflib
+pip install --upgrade nafflib
 ```
-
-PyKLU is needed when your input explicitly selects the KLU solver. The default
-installation also supports the SciPy solver through PyPIC. NAFFlib is useful
-for tune and footprint analysis and is not required for a basic buildup run.
-If PyKLU needs to build from source, consult its PyPI installation instructions
-for the additional CMake and BLAS requirements.
 
 MPI execution requires a separate MPI runtime and `mpi4py`; see
 [parallel execution](tutorials/parallel.md). Local multiprocessing does not

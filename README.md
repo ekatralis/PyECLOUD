@@ -36,7 +36,7 @@ Or, after installing PyPIC, run `python -m pip install -e .` inside this checkou
 Pip installs the Python build dependencies and compiles seven Fortran extensions
 with F2PY/Meson and two Cython/C extensions. There is no separate `make` or
 `cythonize` step. Cython, Meson, and Ninja are build dependencies; NumPy, SciPy,
-matplotlib, and pypic-poisson are runtime dependencies. The unrelated `pypic`
+matplotlib, pypic-poisson, PyKLU, and h5py are runtime dependencies. The unrelated `pypic`
 distribution on PyPI is not a dependency. If you previously installed this
 PyPIC checkout under the old distribution name `PyPIC`, uninstall it before
 reinstalling the renamed package to avoid overlapping installed files.
@@ -47,8 +47,10 @@ for a regular installation. `make`, `setup_pyecloud`, and `cythonize` remain
 convenience wrappers around the same editable pip installation.
 
 PyHEADTAIL can also be installed through the `.[pyheadtail]` extra; h5py is a
-core dependency. PyKLU is optional; the SciPy sparse solver is available with
-the core dependencies.
+core dependency. PyKLU is installed automatically as the default sparse solver
+for its speed advantage over SciPy's SuperLU. PyECLOUD can also run without
+PyKLU: select SciPy with `sparse_solver = 'scipy_slu'` in
+`simulation_parameters.input`.
 
 ## Running simulations
 

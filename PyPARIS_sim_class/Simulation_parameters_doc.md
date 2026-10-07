@@ -127,7 +127,9 @@ Select the submission system using the optional parameter (names are case-insens
 ```python
 submission_system = 'HTCondor' # Default; alternatively 'Slurm'
 ```
-For `HTCondor`, the simulation exits with code 177, which must be handled by the scheduler setup (for example, a configured DAGMan workflow).
+For `HTCondor`, the simulation exits with code 177. See the
+[Batch Jobs guide on DAGMan continuation](../batch/stability.md#dagman-continuation)
+for how to handle this code and submit the next simulation part.
 For `Slurm`, it runs `sbatch job.cmd` from the simulation's working directory;
 that directory must contain your submission script under that name.
 To run a custom command instead, configure:
