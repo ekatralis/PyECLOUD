@@ -4,13 +4,20 @@ PyECLOUD is a 2D macro-particle code for the simulation of electron cloud effect
 
 ## Installation
 
-Python 3.11 or newer and working C and Fortran compilers are required. In a conda
-environment, these can be installed with `conda install -c conda-forge c-compiler
-fortran-compiler`. Activate the environment before building.
+Create a Conda environment with Python 3.13 and the compilers and numerical
+libraries, then install the released PyHEADTAIL and PyECLOUD packages:
 
 ```sh
-python -m pip install pyecloud
+conda create -n ecloud -c conda-forge python=3.13 pip
+conda activate ecloud
+conda install -c conda-forge c-compiler cxx-compiler fortran-compiler
+conda install -c conda-forge numpy scipy matplotlib
+pip install --upgrade pyheadtail
+pip install --upgrade pyecloud
 ```
+
+Keep the environment active when installing packages and running simulations.
+See the [installation guide](docs/installation.md) for editable Git installs.
 
 Pip automatically installs the Poisson solvers from **pypic-poisson**. Only source
 distributions are published for these two packages, so pip builds their native
@@ -39,8 +46,8 @@ installation command after changing native sources. Use `python -m pip install .
 for a regular installation. `make`, `setup_pyecloud`, and `cythonize` remain
 convenience wrappers around the same editable pip installation.
 
-Optional integrations can be installed with `.[pyheadtail]` (PyHEADTAIL and h5py)
-or `.[hdf5]` (h5py). PyKLU is optional; the SciPy sparse solver is available with
+PyHEADTAIL can also be installed through the `.[pyheadtail]` extra; h5py is a
+core dependency. PyKLU is optional; the SciPy sparse solver is available with
 the core dependencies.
 
 ## Running simulations
