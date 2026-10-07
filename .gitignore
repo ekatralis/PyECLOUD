@@ -33,6 +33,7 @@ Pyecltest_angle2D.mat
 Pyecltest_angle3D.mat
 *.png
 !docs/pyecl_logo.png
+!docs/pyecl_logo_darkbg.png
 *.swp
 test_multipole
 *STDERR
