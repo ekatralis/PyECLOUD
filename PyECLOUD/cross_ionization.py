@@ -466,7 +466,7 @@ class Cross_Ionization(object):
                             print(('Extracting sigma %.0f'%(float(i_ene) / float(N_ene) * 100) + """%"""))
 
                         # Test process.get_sigma()
-                        sigma_m2 = process.get_sigma(np.array([energy]))
+                        sigma_m2 = process.get_sigma(np.array([energy])).item()
                         save_dict['sigma_cm2_interp'][i_ene] = sigma_m2 * 1e4
 
                         # Test process.generate()
