@@ -17,8 +17,8 @@ dependencies = ["numpy>=1.26", "scipy", "matplotlib", "pypic-poisson>=2.5.0", "p
 "Documentation" = "https://github.com/PyCOMPLETE/PyECLOUD/wiki"
 
 [project.optional-dependencies]
-tests = ["pytest"]
-pyheadtail = ["PyHEADTAIL"]
+tests = ["pytest", "seaborn","nafflib"]
+tracking = ["PyHEADTAIL","nafflib"]
 
 [tool.setuptools]
 include-package-data = false
