@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$script_dir"
 
-mkdir -p output
-failed_file="output/failed_simulations.txt"
+mkdir -p outputs
+failed_file="outputs/failed_simulations.txt"
 : > "$failed_file"
 failed=0
 
@@ -17,7 +17,7 @@ cleanup_generated() {
 
 run_and_check() {
     local simulation_script="$1"
-    local output_dir="output/${simulation_script%.sh}"
+    local output_dir="outputs/${simulation_script%.sh}"
     echo "Running $simulation_script"
 
     if bash "$simulation_script"; then
