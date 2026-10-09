@@ -1,14 +1,9 @@
 # Stability simulations with continuation
 
 For single-bunch PyPARIS simulations, use a DAGMan node that runs one part at
-a time. The worker retrieves the last completed state, runs locally, uploads
-the next state, and returns the simulation exit code. Read the
+a time. The worker script downloads the inputs and last completed state, runs
+one simulation part, and uploads its checkpoint. Read the
 [storage and environment setup](index.md) first.
-
-The worker follows the `pyparis_executable.sh` structure in
-`examples/HTCondor_templates/PyPARIS_singlebunch_checkpoint_job/`: input transfer,
-simulation execution, and output transfer in one script. It uses the standard
-single-bunch checkpoint file set described below.
 
 ## Configure simulation parts
 
@@ -55,16 +50,19 @@ queue 1
 ```
 
 Adjust CPU, memory, and disk requests to your simulation.
-The CPU argument keeps the multiprocessing worker count
-consistent with the requested allocation. Simulation data travels to EOS from
+Passing `request_cpus` to the script makes PyPARIS use the allocated number
+of processes. Simulation data travels to EOS from
 the worker, so no simulation filenames appear in `transfer_output_files`.
 
 ## Worker script
 
 Download {download}`pyparis_executable.sh <../_static/htcondor/pyparis_executable.sh>`
 and save it beside `htcondor.sub`. Set `ROOT_URL`, `SIM_PATH`, and the environment
-activation path. `SIM_PATH` must end in `/`. The entire Python/Conda environment
-must be installed on EOS as explained in the [environment setup](index.md#python-environment).
+activation path. `SIM_PATH` must end in `/`. See
+[Python environment](index.md#python-environment) for setup instructions.
+
+This script follows the example in
+`examples/HTCondor_templates/PyPARIS_singlebunch_checkpoint_job/`.
 
 ```{literalinclude} ../_static/htcondor/pyparis_executable.sh
 :language: bash
@@ -111,8 +109,8 @@ on `0` or `177`, then returns that code. Input or output transfer failures retur
 `1`. Do not add an unguarded `set -e` around Python: `177` is expected and the
 checkpoint must be uploaded before exiting.
 
-Every required file is checked before uploading, every transfer is checked,
-and `simulation_status.sta` is uploaded last. Previous bunch states are retained.
+The script checks the required files and transfer results, then uploads
+`simulation_status.sta` last. Previous bunch states are retained.
 An interrupted upload can leave files from different parts on EOS. Inspect
 the checkpoint before restarting. Run only one workflow per EOS simulation
 directory.
@@ -152,8 +150,8 @@ condor_submit -dry-run submit.ads htcondor.sub
 condor_submit_dag workflow.dag
 ```
 
-A held transfer is not necessarily a completed job, so the POST script may
-not yet run. Inspect `condor_q -hold`, the scheduler event log, and the DAGMan
+A job held during output transfer can delay the POST script and prevent
+continuation. Inspect `condor_q -hold`, the scheduler event log, and the DAGMan
 output when continuation stops. This workflow continues **completed parts**;
 it does not automatically recover a worker killed mid-part. Resolve incomplete
 state or transfer failures before restarting the workflow.

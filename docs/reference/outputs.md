@@ -19,7 +19,7 @@ print(data["t"].shape, data["Nel_timep"].shape)
 `squeeze_me=True` removes singleton dimensions. Inspect shapes before indexing
 histograms, especially for runs with only one sample or bunch passage.
 The [buildup tutorial](../tutorials/buildup.md#inspect-your-result) plots the
-time series from an actual run.
+simulation time series.
 
 ## Time series
 

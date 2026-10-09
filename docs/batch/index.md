@@ -1,7 +1,7 @@
 # HTCondor at CERN
 
-These examples describe the submission structure for buildup scans and
-single-bunch stability simulations. Replace the example EOS locations,
+Submit buildup scans and single-bunch stability simulations to CERN HTCondor
+using the examples below. Replace the example EOS locations,
 environment activation script, resources, and simulation inputs before use.
 
 ```{toctree}
@@ -21,10 +21,10 @@ For the standard CERN batch setup:
 | EOS, mounted on submit and worker nodes, but not the standard scheduler nodes | Simulation inputs, results, and optionally the Python environment |
 | Worker scratch (`_CONDOR_SCRATCH_DIR`) | Running the simulation and producing local output |
 
-Submit from an AFS directory. Keep scheduler-facing paths there. An EOS mount
-path used **inside the worker script** is different from an EOS path that the
-scheduler would need to open. Use the CERN XRootD transfer plugin with `root://`
-URLs for scheduler-managed EOS data transfers, or run `xrdcp` inside the worker.
+Submit from an AFS directory and keep submission files and scheduler logs there.
+Workers can access EOS directly. For HTCondor-managed EOS transfers, use
+`root://` URLs with the CERN XRootD transfer plugin, or run `xrdcp` inside
+the worker to handle transfers yourself.
 See the [CERN batch documentation](https://batchdocs.web.cern.ch/) for more details about HTCondor submissions.
 
 ### EOS paths and XRootD endpoints
@@ -90,7 +90,7 @@ container with your run and keep the software environment consistent across
 continuation jobs. Check
 the scratch-directory bindings for your image/site configuration. Run EOS
 transfers from the host worker shell, where its credentials and XRootD tools
-are available. Container selection and output-transfer strategy are independent.
+are available.
 
 ## Output transfers and held jobs
 
@@ -104,7 +104,7 @@ yourself from the worker.
 runs.** A missing file causes a transfer error and can put the job on hold,
 making it appear stuck after the calculation finishes. This is why the buildup
 example lists one archive and creates a diagnostic version before starting.
-An archive's existence does not establish simulation success.
+Check the exit code and logs even if the archive was transferred successfully.
 
 With `transfer_output_files = ""`, the worker is responsible for saving the
 simulation data. HTCondor still transfers standard output and error to the

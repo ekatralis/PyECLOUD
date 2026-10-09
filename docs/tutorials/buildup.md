@@ -90,9 +90,7 @@ fig.savefig("buildup.png", dpi=150)
 python plot_buildup.py
 ```
 
-Open `buildup.png` to inspect the beam profile and cloud population. This script
-plots the output of your run. The historical plotting script in `doc/example/`
-instead reads a stored regression reference file.
+Open `buildup.png` to inspect the beam profile and cloud population.
 
 Continue with the [output reference](../reference/outputs.md) or
 [saving and restarting simulations](restart.md).

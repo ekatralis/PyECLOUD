@@ -60,10 +60,15 @@ The buildup parameter pages were migrated from
 editable source. Preserve original authorship when migrating further material.
 
 Check parameter names, units, defaults, and examples against the implementation
-when changing their descriptions. A clean documentation build checks markup
-and references; it does not verify simulation behaviour. A complete numerical
-validation of the tutorials and audit of historical parameter defaults remain
-separate tasks.
+when changing their descriptions.
+
+### Audit and validation notes
+
+A clean documentation build checks markup and references; it does not verify
+simulation behaviour. The tutorials still need a complete numerical validation.
+Descriptions and defaults inherited from the reference manual have not undergone
+a full audit against the implementation, although individual entries have been
+updated during the migration.
 
 ## Wiki migration record
 
@@ -82,6 +87,9 @@ Output field names were checked against `PyECLOUD/pyecloud_saver.py`, including
 `xg_hist_det`, which was duplicated as `nel_hist_det` in the original manual.
 The parallel execution guide retains the wiki's MPI environment advice;
 the old Python and MPI source-compilation recipes remain historical.
+
+The buildup tutorial plots the output of the reader's simulation. The older
+plotting script in `doc/example/` reads a stored regression reference file.
 
 | Original material | Destination |
 | --- | --- |
