@@ -4,10 +4,6 @@ import os
 import time
 import argparse
 
-BIN = os.path.expanduser("../../../")  # folder containing PyECLOUD, PyPIC, PyKLU
-if BIN not in sys.path:
-    sys.path.append(BIN)
-
 from PyECLOUD.buildup_simulation import BuildupSimulation
 
 sim_folder = 'LHC_ArcDipReal_450GeV_sey1.70_2.5e11ppb_bl_1.00ns'

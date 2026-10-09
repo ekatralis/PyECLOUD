@@ -1,5 +1,9 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
+
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'comparison_plots')
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 from PyECLOUD.dynamics_Boris_f2py import B_file
 
 myfile = B_file(B0x=0., B0y=0., B0z=0., fact_Bmap=1., B_map_file="Bfile.mat")
@@ -35,4 +39,5 @@ plt.plot(yp, By_y,'.', label='By')
 plt.plot(yp, 1e4*Bz_y,'.', label='$10^{4}$ Bz')
 plt.xlabel('y')
 plt.legend()
-plt.show()
+plt.figure(1).savefig(os.path.join(OUTPUT_DIR, 'figure_01.png'), dpi=200)
+plt.figure(2).savefig(os.path.join(OUTPUT_DIR, 'figure_02.png'), dpi=200)

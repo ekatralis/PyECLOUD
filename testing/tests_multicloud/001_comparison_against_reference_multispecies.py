@@ -1,6 +1,4 @@
 import sys, os
-BIN = os.path.expanduser("../../../")
-sys.path.append(BIN)
 
 import argparse
 import pylab as pl

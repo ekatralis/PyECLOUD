@@ -5,9 +5,6 @@ import time
 import argparse
 
 import signal
-BIN = os.path.expanduser("../../../")  # folder containing PyECLOUD, PyPIC, PyKLU
-if BIN not in sys.path:
-    sys.path.append(BIN)
 
 from PyECLOUD.buildup_simulation import BuildupSimulation
 

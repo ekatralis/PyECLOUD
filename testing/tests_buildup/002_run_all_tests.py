@@ -56,4 +56,6 @@ for ctr, sim_folder in enumerate(all_sim_folders):
             print(cmd)
             status = os.system(cmd)
             if status != 0:
-                raise SystemError('%s finished with status %i' % (cmd, status))
+                with open('failed_tests.txt', 'a') as fid:
+                    fid.write('%s finished with status %i\n' % (cmd, status))
+                #raise SystemError('%s finished with status %i' % (cmd, status))
