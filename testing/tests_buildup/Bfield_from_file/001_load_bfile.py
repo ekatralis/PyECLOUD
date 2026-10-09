@@ -16,7 +16,10 @@ Bx_x = np.zeros_like(xp)
 By_x = np.zeros_like(xp)
 Bz_x = np.zeros_like(xp)
 for ii in range(len(xp)):
-    Bx_x[ii], By_x[ii], Bz_x[ii] = myfile.get_B(xp[ii], yobs)
+    Bx, By, Bz = myfile.get_B(xp[ii], yobs)
+    Bx_x[ii], By_x[ii], Bz_x[ii] = (
+        np.asarray(v).item() for v in (Bx, By, Bz)
+    )
 
 
 yp = np.linspace(-6, 6, 100)
@@ -24,7 +27,10 @@ Bx_y = np.zeros_like(yp)
 By_y = np.zeros_like(yp)
 Bz_y = np.zeros_like(yp)
 for ii in range(len(yp)):
-    Bx_y[ii], By_y[ii], Bz_y[ii] = myfile.get_B(xobs, yp[ii])
+    Bx, By, Bz = myfile.get_B(xobs, yp[ii])
+    Bx_y[ii], By_y[ii], Bz_y[ii] = (
+        np.asarray(v).item() for v in (Bx, By, Bz)
+    )
 
 plt.figure(1)
 plt.plot(xp, Bx_x,'.', label='Bx')
