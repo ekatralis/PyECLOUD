@@ -37,10 +37,10 @@ error = logs/$(ClusterId).$(ProcId).err
 log = logs/$(ClusterId).log
 
 should_transfer_files = YES
-transfer_input_files = $(folder)/inputs.tgz, root://eosproject-e.cern.ch//eos/project/e/PROJECT/scan/jobfiles.tgz
+transfer_input_files = $(folder)/inputs.tgz, root://eosproject-e.cern.ch//eos/project/e/ecloud-simulations/YOURDIRECTORY/scan/jobfiles.tgz
 when_to_transfer_output = ON_EXIT
 transfer_output_files = output.tgz
-output_destination = root://eosproject-e.cern.ch//eos/project/e/PROJECT/scan/results/$(folder)/$(ClusterId).$(ProcId)/
+output_destination = root://eosproject-e.cern.ch//eos/project/e/ecloud-simulations/YOURDIRECTORY/scan/results/$(folder)/$(ClusterId).$(ProcId)/
 MY.XRDCP_CREATE_DIR = True
 
 request_cpus = 1
@@ -90,7 +90,7 @@ trap finish EXIT
 tar -xzf jobfiles.tgz -C work
 tar -xzf inputs.tgz -C work
 cd work
-source /eos/project/e/PROJECT/environments/activate-ecloud.sh
+source /eos/project/e/ecloud-simulations/YOURDIRECTORY/environments/activate-ecloud.sh
 python run_sim.py > simulation.stdout 2> simulation.stderr
 ```
 

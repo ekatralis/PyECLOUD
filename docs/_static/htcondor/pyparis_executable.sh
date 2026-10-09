@@ -2,7 +2,7 @@
 set -uo pipefail
 
 ROOT_URL="root://eosproject-e.cern.ch/"
-SIM_PATH="/eos/project/e/PROJECT/stability/run_000/"
+SIM_PATH="/eos/project/e/ecloud-simulations/YOURDIRECTORY/stability/run_000/"
 JOB_PWD="${_CONDOR_SCRATCH_DIR:?}"
 cpus=${1:?Missing CPU count}
 xrdcp_opts=(--retry 3)
@@ -67,7 +67,7 @@ transfer_outputs() {
 }
 
 transfer_inputs || exit 1
-source /eos/project/e/PROJECT/environments/activate-ecloud.sh || exit 1
+source /eos/project/e/ecloud-simulations/YOURDIRECTORY/environments/activate-ecloud.sh || exit 1
 date >> envinfo.txt
 run_python -c 'import os, sys; print(sys.version); print("ECLOUD_CONTAINER_VERSION=" + os.environ.get("ECLOUD_CONTAINER_VERSION", "not using a container"))' >> envinfo.txt || exit 1
 

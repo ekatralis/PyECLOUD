@@ -25,9 +25,31 @@ Submit from an AFS directory. Keep scheduler-facing paths there. An EOS mount
 path used **inside the worker script** is different from an EOS path that the
 scheduler would need to open. Use the CERN XRootD transfer plugin with `root://`
 URLs for scheduler-managed EOS data transfers, or run `xrdcp` inside the worker.
-See the [CERN batch documentation](https://batchdocs.web.cern.ch/) for site setup
-and authentication requirements. Workers need credentials and permission to
-read the inputs and write the destination for the duration of the job.
+See the [CERN batch documentation](https://batchdocs.web.cern.ch/) for more details about HTCondor submissions.
+
+### EOS paths and XRootD endpoints
+
+The examples use `/eos/project/e/ecloud-simulations/YOURDIRECTORY/`.
+Replace `YOURDIRECTORY` with your directory within the project.
+
+Choose the XRootD endpoint to match the EOS storage you are using:
+
+| Storage | Endpoint |
+| --- | --- |
+| EOS user space | `root://eosuser.cern.ch` |
+| EOS project space | `root://eosproject-{initial project letter}.cern.ch` |
+
+For the `ecloud-simulations` project, the initial letter is `e`, so the endpoint
+is `root://eosproject-e.cern.ch`. A complete file URL looks like:
+
+```text
+root://eosproject-e.cern.ch//eos/project/e/ecloud-simulations/YOURDIRECTORY/scan/jobfiles.tgz
+```
+
+For user storage, use `root://eosuser.cern.ch` with your `/eos/user/...` path.
+Update both the endpoint and the path when switching storage. In the stability
+worker script these are `ROOT_URL` and `SIM_PATH`; keep their trailing slashes
+as shown so the combined URL has `//eos/` after the hostname.
 
 ## Python environment
 
@@ -36,7 +58,7 @@ EOS**, including its interpreter, packages, and activation scripts. Workers
 activate the environment by sourcing:
 
 ```bash
-source /eos/project/e/PROJECT/environments/activate-ecloud.sh
+source /eos/project/e/ecloud-simulations/YOURDIRECTORY/environments/activate-ecloud.sh
 python -c 'import PyECLOUD, PyPARIS'
 ```
 

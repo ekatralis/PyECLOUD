@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 project = "PyECLOUD"
 author = "PyECLOUD contributors"
-copyright = "PyECLOUD contributors"
+copyright = "CERN,  Geneva  2011-Present"
 version_module = ast.parse((ROOT / "PyECLOUD" / "_version.py").read_text())
 release = next(
     ast.literal_eval(node.value)
