@@ -34,3 +34,10 @@ do
             echo "python $test.py -o "outputs/$test/output" --noshow" >> failed_tests.txt
     fi
 done
+
+if [ -s failed_tests.txt ]; then
+    echo "One or more tests failed; see failed_tests.txt"
+    exit 1
+fi
+
+echo "All tests completed successfully."
