@@ -32,7 +32,7 @@ pl.savefig('Cross_section_interp.png', dpi=200)
 
 pl.figure(figsize=(8,6))
 pl.semilogx(sigma_extr['energy_eV'], sigma_extr['sigma_cm2_sampled_electron'], '.', label='sampled with e$^-$')
-pl.semilogx(sigma_extr['energy_eV'], sigma_extr['sigma_cm2_sampled_n2'], '.', label='sampled with N$_2\!$$^+$')
+pl.semilogx(sigma_extr['energy_eV'], sigma_extr['sigma_cm2_sampled_n2'], '.', label='sampled with N$_2\\!$$^+$')
 
 pl.semilogx(sigma_ref['energy_eV'], sigma_ref['cross_section_cm2'], '--k', label='input')
 
