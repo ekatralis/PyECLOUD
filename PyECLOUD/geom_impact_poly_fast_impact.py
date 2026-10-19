@@ -6,6 +6,7 @@
 
 
 from numpy import sum, arctan2, sin, cos
+import warnings
 import scipy.io as sio
 import numpy as np
 import numpy.random as random
@@ -324,6 +325,12 @@ class polyg_cham_photoemission(polyg_cham_geom_object):
             dict_chm = filename_chm
         else:
             dict_chm = sio.loadmat(filename_chm)
+        if 'k_pe_st' in dict_chm:
+            warnings.warn(
+                'k_pe_st found in the photoemission chamber file is not used. '
+                'Set k_pe_st in the input files instead.',
+                stacklevel=2,
+            )
         phem_cdf = np.squeeze(dict_chm['phem_cdf'])
 
         # Make sure phem_cdf has correct shape

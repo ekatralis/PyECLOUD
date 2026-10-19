@@ -385,6 +385,11 @@ def read_input_files_and_init_components(pyecl_input_folder='./', skip_beam=Fals
         else:
             resgasion = None
 
+        if thiscloud.photoem_flag in (1, 2, 'from_file', 3, 'per_segment') and thiscloud.k_pe_st < 0:
+            raise inp_spec.PyECLOUD_ConfigException(
+                f'photoem_flag is {thiscloud.photoem_flag!r} but k_pe_st = {thiscloud.k_pe_st}: '
+                'set k_pe_st (photoelectrons per proton per meter) in the input files.')
+
         if thiscloud.photoem_flag == 1:
             phemiss = gpc.photoemission(thiscloud.inv_CDF_refl_photoem_file, thiscloud.k_pe_st, thiscloud.refl_frac, thiscloud.e_pe_sigma, thiscloud.e_pe_max,
                                         thiscloud.alimit, thiscloud.x0_refl, thiscloud.y0_refl, thiscloud.out_radius, chamb, thiscloud.phem_resc_fac,
